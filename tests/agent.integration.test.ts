@@ -5,6 +5,58 @@ import { configureTrace } from "../src/tools.js";
 import { inboxItem, tempPath } from "./helpers.js";
 
 describe("runAgent edge workflows", () => {
+  it("returns a priority-sorted action plan with stable routine tie-breakers", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const outputs = await runAgent([
+      inboxItem({
+        id: "routine_late",
+        received_at: "2026-04-28T09:00:00-07:00",
+        subject: "Billing question",
+        body:
+          "I have a billing question for Mia Nguyen. Please call parent Dana at 555-1111.",
+      }),
+      inboxItem({
+        id: "routine_same_a",
+        received_at: "2026-04-28T06:00:00-07:00",
+        subject: "Clinical question",
+        body:
+          "Should I wait until the evaluation for Ava Chen, age 5? Parent Lee can be reached at 555-2222.",
+      }),
+      inboxItem({
+        id: "same_day_cancel",
+        received_at: "2026-04-28T08:00:00-07:00",
+        subject: "Cancel today",
+        body:
+          "We need to cancel today's 2pm OT appointment for Noah Hall. DOB is 2017-11-02. Please call 555-3333.",
+      }),
+      inboxItem({
+        id: "routine_same_b",
+        received_at: "2026-04-28T06:00:00-07:00",
+        subject: "Provider follow-up",
+        body:
+          "Following up on the signed referral for Olivia Park. Parent Sam is at 555-4444.",
+      }),
+      inboxItem({
+        id: "safety",
+        received_at: "2026-04-28T07:00:00-07:00",
+        subject: "Concern about Leo",
+        body:
+          "I am worried about Leo, age 6. Dad hit him yesterday. Please call Maria at 555-0102.",
+      }),
+    ]);
+
+    assert.deepEqual(
+      outputs.map((output) => output.item_id),
+      [
+        "safety",
+        "same_day_cancel",
+        "routine_same_a",
+        "routine_same_b",
+        "routine_late",
+      ],
+    );
+  });
+
   it("surfaces no suitable slot instead of silently holding a mismatched slot", async () => {
     configureTrace({ path: tempPath("trace.jsonl") });
     const [output] = await runAgent([

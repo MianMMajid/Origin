@@ -20,7 +20,7 @@ The triage/validate flags are optional; the commands default to the paths shown 
 
 ## Architecture
 
-`src/index.ts` owns CLI parsing, trace setup, input reading, and final `buildBatchOutput()` wrapping. `src/agent.ts` is intentionally small: it builds batch context and delegates item work to `src/triage/triage-item.ts`.
+`src/index.ts` owns CLI parsing, trace setup, input reading, and final `buildBatchOutput()` wrapping. `src/agent.ts` is intentionally small: it builds batch context, delegates item work to `src/triage/triage-item.ts`, and sorts the final action plan for human review.
 
 The triage code is split by responsibility:
 
@@ -31,6 +31,8 @@ The triage code is split by responsibility:
 - `tests/`: edge-case tests for extraction, classification, slot preference behavior, full agent workflows, and validator failure paths.
 
 Each inbox item is processed inside `withItemContext()` so every tool call is audit-linked to the correct item.
+
+The agent runs item-level tool calls in source inbox order for deterministic trace behavior, then returns a priority-sorted review queue: `P0`, `P1`, `P2`, then `P3`. Items with the same urgency are ordered by `received_at`, with original inbox order as the final tie-breaker.
 
 The agent does four things per item:
 
