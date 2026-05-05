@@ -23,7 +23,7 @@ export function extractIntake(item: InboxItem): ExtractedIntake {
       matchText(text, /\bDOB\s+(?:is\s+)?([0-9]{4}-[0-9]{2}-[0-9]{2})\b/i),
       matchText(
         text,
-        /\b(?:DOB|date of birth)[:\s]+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})\b/i,
+        /\b(?:DOB|date of birth)[:\s]+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})\b/i,
         normalizeSlashDate,
       ),
       matchText(text, /\b(\d+)[- ]year[- ]old\b/i, (age) => `${age}-year-old`),
@@ -44,6 +44,7 @@ export function extractIntake(item: InboxItem): ExtractedIntake {
       matchText(text, /\b(?:Payer|Plan):\s*([^.\n]+)/i),
       matchText(text, /\bInsurance\s+is\s+([^,.\n]+)/i),
       matchText(text, /\bTenemos\s+([^,.\n]+)\b/i),
+      matchText(text, /\b(Medi-Cal|Medicaid)\b/i, () => "Medicaid"),
       matchText(text, /\b(self[- ]?pay|private pay|cash pay|no insurance|uninsured)\b/i),
     ]),
     member_id: firstClean([
@@ -59,9 +60,16 @@ export function replyTarget(
   item: InboxItem,
   extracted: ExtractedIntake,
 ): ReplyTarget {
+  const senderEmail = matchText(item.sender, /<([^>]+)>/);
+  if (item.channel === "email" && senderEmail) {
+    // For emails, reply to the sender before any address mentioned in the body;
+    // body addresses may be referral contacts or quoted thread participants.
+    return { recipient: senderEmail, channel: "email" };
+  }
+
   const email = firstClean([
     matchText(item.body, /\b([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/i),
-    matchText(item.sender, /<([^>]+)>/),
+    senderEmail,
   ]);
   if (email) {
     return { recipient: email, channel: "email" };
@@ -97,7 +105,8 @@ export function schedulingPreference(item: InboxItem): string | undefined {
     firstClean([
       matchText(item.body, /\bPreferred availability:\s*([^.\n]+)/i),
       matchText(item.body, /\bFamily prefers\s+([^.\n]+)/i),
-      matchText(item.body, /\bPrefiero\s+([^.\n]+)/i),
+      matchText(item.body, /\bPref(?:iero|erimos)\s+([^.\n]+)/i),
+      matchText(item.body, /\b(?:available|availability)\s+([^.\n]+)/i),
       matchText(item.body, /\b(next Tuesday)\b/i),
     ]) || undefined
   );
@@ -193,7 +202,10 @@ function extractDisciplines(text: string): Discipline[] | null {
 function extractConcern(text: string): string | null {
   return firstClean([
     matchText(text, /\bConcern:\s*([^.\n]+)/i),
+    matchText(text, /\bConcern\s+is\s+([^.\n]+)/i),
     matchText(text, /\bDiagnosis\/concern:\s*([^.\n]+)/i),
+    matchText(text, /\bReason for referral:\s*([^.\n]+)/i),
+    matchText(text, /\bneeds help with\s+([^.\n]+)/i),
     matchText(text, /\bfor\s+(toe walking and frequent tripping)\b/i),
     matchText(text, /\b(can't say[^?.!]+[?.!]?)\s*/i),
     matchText(text, /\b(speech therapy openings)\b/i),
@@ -205,11 +217,14 @@ function extractPhone(text: string): string | null {
   return firstClean([
     matchText(text, /(\(\d{3}\)[-.\s]\d{3}[-.\s]\d{4})\b/),
     matchText(text, /\b(\d{3}[-.\s]\d{3}[-.\s]\d{4})\b/),
+    matchText(text, /\b(\d{10})\b/),
     matchText(text, /\b(\d{3}-\d{4})\b/),
   ]);
 }
 
 function normalizeSlashDate(date: string): string {
   const [month, day, year] = date.split("/");
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  const fullYear =
+    year.length === 2 ? `${Number(year) <= 30 ? "20" : "19"}${year}` : year;
+  return `${fullYear}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }

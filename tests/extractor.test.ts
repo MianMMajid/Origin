@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   extractIntake,
   preferredLanguage,
+  replyTarget,
 } from "../src/triage/extractor.js";
 import { inboxItem } from "./helpers.js";
 
@@ -39,6 +40,24 @@ describe("extractIntake", () => {
     assert.equal(preferredLanguage(item), "es");
   });
 
+  it("handles short DOBs, compact phones, Medi-Cal, and broader concern wording", () => {
+    const item = inboxItem({
+      sender: "Referral fax",
+      body:
+        "Client: Nico Diaz. DOB 9/4/18. Parent: Rosa Diaz, 5551234567. Discipline requested: OT. Reason for referral: sensory processing. Medi-Cal member number MCD-88.",
+    });
+
+    assert.deepEqual(extractIntake(item), {
+      child_name: "Nico Diaz",
+      dob_or_age: "2018-09-04",
+      parent_contact: "Rosa Diaz, 5551234567",
+      discipline: ["OT"],
+      diagnosis_or_concern: "sensory processing",
+      payer: "Medicaid",
+      member_id: "MCD-88",
+    });
+  });
+
   it("treats self-pay as payer information without requiring a member ID", () => {
     const item = inboxItem({
       body:
@@ -46,5 +65,19 @@ describe("extractIntake", () => {
     });
 
     assert.equal(extractIntake(item).payer, "self-pay");
+  });
+
+  it("replies to the email sender before body-mentioned addresses", () => {
+    const item = inboxItem({
+      channel: "email",
+      sender: "Parent Sender <parent@example.com>",
+      body:
+        "Please use old-contact@example.com only for records. Child: Ava Sender.",
+    });
+
+    assert.deepEqual(replyTarget(item, extractIntake(item)), {
+      recipient: "parent@example.com",
+      channel: "email",
+    });
   });
 });

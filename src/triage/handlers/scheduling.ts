@@ -6,37 +6,48 @@ import { draftReplyFor } from "./common.js";
 export async function handleScheduling(
   input: ActionInput,
 ): Promise<ActionResult> {
-  const { item, extracted, dueToday } = input;
+  const { item, extracted, decision, dueToday, dueRoutine } = input;
+  const sameDay = decision.urgency === "P1";
   const escalationReason =
     "Same-day cancellation or reschedule request needs prompt front desk action.";
 
   await lookup_policy({ topic: "scheduling" });
-  await lookup_policy({ topic: "cancellation" });
-  await escalate({
-    item_id: item.id,
-    reason: escalationReason,
-    severity: "P1",
-  });
+  if (sameDay) {
+    await lookup_policy({ topic: "cancellation" });
+    // Only same-day operational issues are escalated. Routine scheduling stays
+    // in the front-desk task queue to avoid alert fatigue.
+    await escalate({
+      item_id: item.id,
+      reason: escalationReason,
+      severity: "P1",
+    });
+  }
+
   const task = await create_task({
     assignee: "front_desk",
-    due: dueToday,
-    title: `Same-day reschedule request for ${displayChild(extracted)}`,
-    notes:
-      "Family reported illness and cannot attend today's appointment. Contact the family, cancel today's visit per policy, and review makeup availability.",
+    due: sameDay ? dueToday : dueRoutine,
+    title: `${sameDay ? "Same-day" : "Routine"} scheduling request for ${displayChild(extracted)}`,
+    notes: sameDay
+      ? "Family reported illness or inability to attend today's appointment. Contact the family, handle today's visit per policy, and review makeup availability."
+      : "Family requested a non-same-day scheduling change. Review availability and follow up through normal front desk workflow.",
   });
   const draftReply = await draftReplyFor(
     item,
     extracted,
-    "Hi, thank you for letting us know. A team member will review today's appointment and follow up about rescheduling options.",
+    sameDay
+      ? "Hi, thank you for letting us know. A team member will review today's appointment and follow up about rescheduling options."
+      : "Hi, thank you for reaching out. A team member will review the schedule and follow up about available options.",
   );
 
   return {
     draftReply,
     taskIds: [task.data.task_id],
-    escalation: { reason: escalationReason, severity: "P1" },
-    recommendedNextAction:
-      "Front desk should contact the family today to handle the cancellation and review reschedule options.",
-    decisionRationale:
-      "The family reports illness and cannot make today's appointment, making this a P1 same-day operational issue.",
+    escalation: sameDay ? { reason: escalationReason, severity: "P1" } : null,
+    recommendedNextAction: sameDay
+      ? "Front desk should contact the family today to handle the cancellation and review reschedule options."
+      : "Front desk should review the routine scheduling request and follow up with options.",
+    decisionRationale: sameDay
+      ? "The family reports a same-day appointment issue, making this a P1 operational workflow."
+      : "The family is asking for scheduling help, but there is no same-day operational issue, so this remains P2.",
   };
 }

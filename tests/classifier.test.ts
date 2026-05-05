@@ -28,6 +28,19 @@ describe("classifyItem", () => {
     assert.notEqual(classifyItem(item, extractIntake(item)).classification, "safeguarding");
   });
 
+  it("still escalates mixed negation when a new caregiver harm disclosure appears", () => {
+    const item = inboxItem({
+      subject: "Evaluation request",
+      body:
+        "There was no prior abuse reported, but dad hit him yesterday and I need an evaluation.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "safeguarding",
+      urgency: "P0",
+    });
+  });
+
   it("does not escalate ordinary pain wording without unsafe caregiving context", () => {
     const item = inboxItem({
       subject: "Question after PT",

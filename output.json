@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-05T23:33:09.283Z",
+  "generated_at": "2026-05-05T23:45:28.047Z",
   "summary": {
     "total_items": 8,
     "p0_count": 1,
@@ -26,7 +26,7 @@
       "missing_info": [],
       "tools_called": [
         {
-          "call_id": "01KQX7T00QE9HF24ZAAS9QMH4C",
+          "call_id": "01KQX8GHF3Z8QVJJS6TM3BB99P",
           "name": "search_patient",
           "args": {
             "dob": "2018-09-04",
@@ -35,7 +35,7 @@
           "result_summary": "0 patient matches"
         },
         {
-          "call_id": "01KQX7T00T9K2B7XDG6TDYTK1N",
+          "call_id": "01KQX8GHF6D0RP31XWPCZZJSP9",
           "name": "lookup_policy",
           "args": {
             "topic": "service_lines"
@@ -43,7 +43,7 @@
           "result_summary": "2 policy snippets for service_lines"
         },
         {
-          "call_id": "01KQX7T00TVGANAB444SQVH0QW",
+          "call_id": "01KQX8GHF650E1TPE37JR6ZY5D",
           "name": "verify_insurance",
           "args": {
             "member_id": "BCBS-884200",
@@ -52,7 +52,7 @@
           "result_summary": "insurance status: in_network (Blue Cross Blue Shield PPO)"
         },
         {
-          "call_id": "01KQX7T00VHQAMXNBR21HBM08K",
+          "call_id": "01KQX8GHF7EKQQW51RV21ZHZ5D",
           "name": "find_slots",
           "args": {
             "discipline": "SLP",
@@ -62,7 +62,7 @@
           "result_summary": "4 matching slots; earliest 2026-04-29T09:00:00-07:00 with Maya Chen, MS CCC-SLP"
         },
         {
-          "call_id": "01KQX7T00WY1AWZFRTYYTSPMYX",
+          "call_id": "01KQX8GHF75ZPYWHV6ENJH1VWQ",
           "name": "create_task",
           "args": {
             "assignee": "intake",
@@ -70,10 +70,10 @@
             "notes": "Referral appears ready for human intake review. No suitable slot matched the stated preference; review alternate options before contacting the family.",
             "title": "Review intake and slot options for Emma Lee"
           },
-          "result_summary": "created task task_01kqx7t00w58bsqxsa1khn65nt for intake"
+          "result_summary": "created task task_01kqx8ghf7571rd97y2xwcyrdt for intake"
         },
         {
-          "call_id": "01KQX7T00WFR1NZ1CC030FGW9M",
+          "call_id": "01KQX8GHF8X8TE88F4DSTZJGX5",
           "name": "draft_message",
           "args": {
             "body": "Hi, thank you for sending Emma Lee's information. Our intake team will review the referral and follow up about evaluation options.",
@@ -81,13 +81,13 @@
             "language": "en",
             "recipient": "daniel.lee@example.com"
           },
-          "result_summary": "created draft draft_01kqx7t00w7qwp5qkahfxjr9k2 (email, en)"
+          "result_summary": "created draft draft_01kqx8ghf88zpg05b6rzrfpe5f (email, en)"
         }
       ],
       "recommended_next_action": "Intake should review provider availability and alternatives before contacting the family.",
       "draft_reply": "Hi, thank you for sending Emma Lee's information. Our intake team will review the referral and follow up about evaluation options.",
       "task_ids": [
-        "task_01kqx7t00w58bsqxsa1khn65nt"
+        "task_01kqx8ghf7571rd97y2xwcyrdt"
       ],
       "escalation": null,
       "decision_rationale": "The referral has enough intake detail and verified in-network coverage, so intake can review evaluation availability."
@@ -111,7 +111,7 @@
       "missing_info": [],
       "tools_called": [
         {
-          "call_id": "01KQX7T00YHBSWWV570JG3J1XC",
+          "call_id": "01KQX8GHF91T6YQ7NMDV83VS4N",
           "name": "lookup_policy",
           "args": {
             "topic": "safeguarding"
@@ -119,17 +119,17 @@
           "result_summary": "2 policy snippets for safeguarding"
         },
         {
-          "call_id": "01KQX7T00YWF1H257FE8EK7TQZ",
+          "call_id": "01KQX8GHFA18FFGRA49PKYT55M",
           "name": "escalate",
           "args": {
             "item_id": "item_2",
             "reason": "Message suggests unsafe caregiving or possible harm and needs same-hour clinical lead review.",
             "severity": "P0"
           },
-          "result_summary": "created escalation esc_01kqx7t00yqp5xwwrg9t16x392 severity P0"
+          "result_summary": "created escalation esc_01kqx8ghfarc3y0ce3kzj4re97 severity P0"
         },
         {
-          "call_id": "01KQX7T00YGRZPXGXQ1JTGJDHY",
+          "call_id": "01KQX8GHFAFP26T22MKY9C1RCJ",
           "name": "create_task",
           "args": {
             "assignee": "clinical_lead",
@@ -137,10 +137,10 @@
             "notes": "Review the inbound message before any scheduling response. Keep outreach neutral and follow clinic safeguarding protocol.",
             "title": "Same-hour safeguarding review for Leo"
           },
-          "result_summary": "created task task_01kqx7t00yzdk0f8setzbhrvjv for clinical_lead"
+          "result_summary": "created task task_01kqx8ghfa2skwkepv5x86pet2 for clinical_lead"
         },
         {
-          "call_id": "01KQX7T00YPS2KM3JBR9V6ER4Y",
+          "call_id": "01KQX8GHFAZ3BMWF1YF3SDHMS9",
           "name": "draft_message",
           "args": {
             "body": "Hi, thank you for contacting Cedar Kids Therapy. We received your message and a member of our team will review it promptly and follow up.",
@@ -148,13 +148,13 @@
             "language": "en",
             "recipient": "Maria Gomez, 555-0102"
           },
-          "result_summary": "created draft draft_01kqx7t00yxenkr8dat18ne7j8 (phone, en)"
+          "result_summary": "created draft draft_01kqx8ghfatcm63v5tj76gwhbn (phone, en)"
         }
       ],
       "recommended_next_action": "Clinical lead should review the safety concern the same hour before intake discusses evaluation availability.",
       "draft_reply": "Hi, thank you for contacting Cedar Kids Therapy. We received your message and a member of our team will review it promptly and follow up.",
       "task_ids": [
-        "task_01kqx7t00yzdk0f8setzbhrvjv"
+        "task_01kqx8ghfa2skwkepv5x86pet2"
       ],
       "escalation": {
         "reason": "Message suggests unsafe caregiving or possible harm and needs same-hour clinical lead review.",
@@ -181,7 +181,7 @@
       "missing_info": [],
       "tools_called": [
         {
-          "call_id": "01KQX7T00Y01W0ZZANYJ6EJ2W5",
+          "call_id": "01KQX8GHFAY3TR0GG4VFJ19FY4",
           "name": "search_patient",
           "args": {
             "dob": "2020-02-11",
@@ -190,7 +190,7 @@
           "result_summary": "0 patient matches"
         },
         {
-          "call_id": "01KQX7T00ZFHPW3025CGVR7ZYZ",
+          "call_id": "01KQX8GHFBC700NNRJ7TW2Y8CT",
           "name": "lookup_policy",
           "args": {
             "topic": "service_lines"
@@ -198,7 +198,7 @@
           "result_summary": "2 policy snippets for service_lines"
         },
         {
-          "call_id": "01KQX7T00ZS67Q5Q41QCEXQJDD",
+          "call_id": "01KQX8GHFBX99CEAYM4YFC46YX",
           "name": "verify_insurance",
           "args": {
             "member_id": "KSR-4471",
@@ -207,7 +207,7 @@
           "result_summary": "insurance status: out_of_network (Kaiser HMO)"
         },
         {
-          "call_id": "01KQX7T010EYT5NKGH5T8J2W76",
+          "call_id": "01KQX8GHFB438AJNEA4XKBGH5J",
           "name": "lookup_policy",
           "args": {
             "topic": "insurance"
@@ -215,7 +215,7 @@
           "result_summary": "3 policy snippets for insurance"
         },
         {
-          "call_id": "01KQX7T010HVYACZQQ5A49R0Q3",
+          "call_id": "01KQX8GHFBQZBHT7HVRXXVYDGJ",
           "name": "create_task",
           "args": {
             "assignee": "billing",
@@ -223,10 +223,10 @@
             "notes": "Kaiser HMO verification returned out_of_network. Review benefits with the family before any slot hold or scheduling workflow.",
             "title": "Resolve insurance before scheduling Owen Brooks"
           },
-          "result_summary": "created task task_01kqx7t010czctsxc49j2k54m9 for billing"
+          "result_summary": "created task task_01kqx8ghfbhz10cxsm18k4062a for billing"
         },
         {
-          "call_id": "01KQX7T010EJDCBYRH6C8QSERS",
+          "call_id": "01KQX8GHFBV48ZKED4ZMQVFN47",
           "name": "draft_message",
           "args": {
             "body": "Hi, thank you for sending Owen Brooks's information. Our billing team needs to review the insurance details before we move forward with scheduling. A team member will follow up with next steps.",
@@ -234,13 +234,13 @@
             "language": "en",
             "recipient": "rachel.brooks@example.com"
           },
-          "result_summary": "created draft draft_01kqx7t0106xfmpgt0x9fvv29a (email, en)"
+          "result_summary": "created draft draft_01kqx8ghfbgdes263xycn6g1ns (email, en)"
         }
       ],
       "recommended_next_action": "Billing should complete a benefits conversation before intake considers appointment availability.",
       "draft_reply": "Hi, thank you for sending Owen Brooks's information. Our billing team needs to review the insurance details before we move forward with scheduling. A team member will follow up with next steps.",
       "task_ids": [
-        "task_01kqx7t010czctsxc49j2k54m9"
+        "task_01kqx8ghfbhz10cxsm18k4062a"
       ],
       "escalation": null,
       "decision_rationale": "The referral has enough clinical intake detail, but insurance verification did not return active in-network coverage."
@@ -264,7 +264,7 @@
       "missing_info": [],
       "tools_called": [
         {
-          "call_id": "01KQX7T010QA4B4X41G29SZD6B",
+          "call_id": "01KQX8GHFCH59TEWHY3DMR9YE6",
           "name": "search_patient",
           "args": {
             "dob": "2019-03-15",
@@ -273,7 +273,7 @@
           "result_summary": "1 patient match: Mateo Ramirez Jr. (2019-03-15)"
         },
         {
-          "call_id": "01KQX7T0107S8PP9XDQJ3CPDM4",
+          "call_id": "01KQX8GHFC9MYMNJWWD6045D2J",
           "name": "lookup_policy",
           "args": {
             "topic": "service_lines"
@@ -281,7 +281,7 @@
           "result_summary": "2 policy snippets for service_lines"
         },
         {
-          "call_id": "01KQX7T0101VW099RD96XZFHKS",
+          "call_id": "01KQX8GHFCE9DT6V09B4S7M9PZ",
           "name": "verify_insurance",
           "args": {
             "member_id": "AET-9910",
@@ -290,7 +290,7 @@
           "result_summary": "insurance status: in_network (Aetna PPO)"
         },
         {
-          "call_id": "01KQX7T011FR5P68Y98GZCFGHN",
+          "call_id": "01KQX8GHFCJMTEECS3DZGSPKFG",
           "name": "find_slots",
           "args": {
             "discipline": "PT",
@@ -299,27 +299,27 @@
           "result_summary": "2 matching slots; earliest 2026-04-29T13:00:00-07:00 with Priya Shah, PT, DPT"
         },
         {
-          "call_id": "01KQX7T011EFAR4TSZ8F10MA5F",
+          "call_id": "01KQX8GHFCQVJSSSGTN2J1D79D",
           "name": "hold_slot",
           "args": {
             "patient_ref": "Mateo Ramirez",
             "slot_id": "slot_pt_priya_2026_04_29_1300"
           },
-          "result_summary": "created pending_review hold hold_01kqx7t01108ef76typ83dxswc until 2026-05-06T00:03:09.281Z"
+          "result_summary": "created pending_review hold hold_01kqx8ghfccmgr69gec3wzn05y until 2026-05-06T00:15:28.044Z"
         },
         {
-          "call_id": "01KQX7T011YNN20BB3G8N3D0T0",
+          "call_id": "01KQX8GHFCEWAVD1XP7Z8AP084",
           "name": "create_task",
           "args": {
             "assignee": "intake",
             "due": "2026-04-30",
-            "notes": "Known-patient request appears ready for human intake review. Pending-review hold hold_01kqx7t01108ef76typ83dxswc was created for Priya Shah, PT, DPT at 2026-04-29T13:00:00-07:00. Patient search found Mateo Ramirez Jr. (2019-03-15) with active status.",
+            "notes": "Known-patient request appears ready for human intake review. Pending-review hold hold_01kqx8ghfccmgr69gec3wzn05y was created for Priya Shah, PT, DPT at 2026-04-29T13:00:00-07:00. Patient search found Mateo Ramirez Jr. (2019-03-15) with active status.",
             "title": "Review intake and slot options for Mateo Ramirez"
           },
-          "result_summary": "created task task_01kqx7t0111b0aygkhst13bsz4 for intake"
+          "result_summary": "created task task_01kqx8ghfcj6ddxx4d1t8ke4v2 for intake"
         },
         {
-          "call_id": "01KQX7T011CFXEDQ4VDTZB6VHT",
+          "call_id": "01KQX8GHFDM8QXJAXPC58AV62J",
           "name": "draft_message",
           "args": {
             "body": "Hi, thank you for sending Mateo Ramirez's information. Our intake team will review the referral and follow up about evaluation options.",
@@ -327,13 +327,13 @@
             "language": "en",
             "recipient": "carla.mendez@example.com"
           },
-          "result_summary": "created draft draft_01kqx7t011qc86jz2e9gahzg40 (email, en)"
+          "result_summary": "created draft draft_01kqx8ghfdcxpt1p2mq63f1c8r (email, en)"
         }
       ],
       "recommended_next_action": "Intake should review the pending slot hold and contact the family with evaluation options.",
       "draft_reply": "Hi, thank you for sending Mateo Ramirez's information. Our intake team will review the referral and follow up about evaluation options.",
       "task_ids": [
-        "task_01kqx7t0111b0aygkhst13bsz4"
+        "task_01kqx8ghfcj6ddxx4d1t8ke4v2"
       ],
       "escalation": null,
       "decision_rationale": "Patient search found an active matching patient, and the request has enough detail for human intake review."
@@ -357,7 +357,7 @@
       "missing_info": [],
       "tools_called": [
         {
-          "call_id": "01KQX7T011ZYS0202RS59ANW60",
+          "call_id": "01KQX8GHFD35B3BYAT4P2ZRDFM",
           "name": "lookup_policy",
           "args": {
             "topic": "clinical_advice"
@@ -365,7 +365,7 @@
           "result_summary": "2 policy snippets for clinical_advice"
         },
         {
-          "call_id": "01KQX7T0119EGT6N3N5020YDFB",
+          "call_id": "01KQX8GHFDVX3DAP5RCZVX5JR7",
           "name": "create_task",
           "args": {
             "assignee": "clinical_lead",
@@ -373,10 +373,10 @@
             "notes": "Parent asked for developmental guidance before booking. Do not provide clinical advice in the draft; route to clinician review, screening, or evaluation workflow.",
             "title": "Review clinical question for Ava"
           },
-          "result_summary": "created task task_01kqx7t0114bbe0f2fvsa2a4yf for clinical_lead"
+          "result_summary": "created task task_01kqx8ghfdyd602yr5hjdhgqhh for clinical_lead"
         },
         {
-          "call_id": "01KQX7T011ENT2AY599X2B1DMD",
+          "call_id": "01KQX8GHFDX3HWD4ARQM442H31",
           "name": "draft_message",
           "args": {
             "body": "Hi, thank you for reaching out. We can help route this to the right next step, but our inbox team cannot provide clinical advice by message. A team member will follow up about screening or evaluation options.",
@@ -384,13 +384,13 @@
             "language": "en",
             "recipient": "Jordan Kim via parent portal"
           },
-          "result_summary": "created draft draft_01kqx7t011s6j4h8j4pt5yj016 (portal, en)"
+          "result_summary": "created draft draft_01kqx8ghfd76gpd3bcjv319fyq (portal, en)"
         }
       ],
       "recommended_next_action": "Clinical lead or intake should review the question and offer a screening or evaluation path without giving advice over inbox.",
       "draft_reply": "Hi, thank you for reaching out. We can help route this to the right next step, but our inbox team cannot provide clinical advice by message. A team member will follow up about screening or evaluation options.",
       "task_ids": [
-        "task_01kqx7t0114bbe0f2fvsa2a4yf"
+        "task_01kqx8ghfdyd602yr5hjdhgqhh"
       ],
       "escalation": null,
       "decision_rationale": "The parent asks whether to worry or wait, so policy requires routing rather than automated clinical advice."
@@ -419,7 +419,7 @@
       ],
       "tools_called": [
         {
-          "call_id": "01KQX7T012GTSM7RDVRAGAAGJE",
+          "call_id": "01KQX8GHFD9SAP901ZKQJHNN1Y",
           "name": "lookup_policy",
           "args": {
             "topic": "service_lines"
@@ -427,7 +427,7 @@
           "result_summary": "2 policy snippets for service_lines"
         },
         {
-          "call_id": "01KQX7T012HYTVEDG6X4K9VS4C",
+          "call_id": "01KQX8GHFDNH54F065T25Z97X9",
           "name": "create_task",
           "args": {
             "assignee": "intake",
@@ -435,13 +435,13 @@
             "notes": "Referral is missing: date of birth or age, parent or guardian contact, payer, member ID. Contact the referring office or family before any scheduling step.",
             "title": "Request missing referral information for Sam Taylor"
           },
-          "result_summary": "created task task_01kqx7t01203f7yz2fbnqckm63 for intake"
+          "result_summary": "created task task_01kqx8ghfd121v6nwbjnxjhj9f for intake"
         }
       ],
       "recommended_next_action": "Intake should request the missing demographic, guardian, and insurance details before scheduling review.",
       "draft_reply": null,
       "task_ids": [
-        "task_01kqx7t01203f7yz2fbnqckm63"
+        "task_01kqx8ghfd121v6nwbjnxjhj9f"
       ],
       "escalation": null,
       "decision_rationale": "The referral identifies a likely SLP need but has blank required intake and insurance fields."
@@ -465,7 +465,7 @@
       "missing_info": [],
       "tools_called": [
         {
-          "call_id": "01KQX7T0128HHFZTN01RCCZ9QN",
+          "call_id": "01KQX8GHFDC3XHS81XVK9JBE8B",
           "name": "lookup_policy",
           "args": {
             "topic": "service_lines"
@@ -473,7 +473,7 @@
           "result_summary": "2 policy snippets for service_lines"
         },
         {
-          "call_id": "01KQX7T0127WCAMHMKF43WQ2K4",
+          "call_id": "01KQX8GHFEQCJ6VT16N5F8TTAC",
           "name": "lookup_policy",
           "args": {
             "topic": "language_access"
@@ -481,7 +481,7 @@
           "result_summary": "2 policy snippets for language_access"
         },
         {
-          "call_id": "01KQX7T012BXKGYQ60AAHQXZJ8",
+          "call_id": "01KQX8GHFENYE22QP71KV5C6DV",
           "name": "verify_insurance",
           "args": {
             "member_id": "MCD-55320",
@@ -490,7 +490,7 @@
           "result_summary": "insurance status: in_network (Medicaid)"
         },
         {
-          "call_id": "01KQX7T012CFGKKAGFNH6RRX8E",
+          "call_id": "01KQX8GHFEB2E77ESAVJCNZSHY",
           "name": "find_slots",
           "args": {
             "discipline": "SLP",
@@ -500,27 +500,27 @@
           "result_summary": "2 matching slots; earliest 2026-04-30T11:00:00-07:00 with Lucia Morales, MA CCC-SLP"
         },
         {
-          "call_id": "01KQX7T012G928N3PY4DN2GJW9",
+          "call_id": "01KQX8GHFE5S6R1F1Q1QBHZ917",
           "name": "hold_slot",
           "args": {
             "patient_ref": "Isabella Lopez",
             "slot_id": "slot_slp_lucia_2026_04_30_1100"
           },
-          "result_summary": "created pending_review hold hold_01kqx7t012dena84mf9tyb3fw5 until 2026-05-06T00:03:09.282Z"
+          "result_summary": "created pending_review hold hold_01kqx8ghfecxc2ahwbv6xhem2x until 2026-05-06T00:15:28.046Z"
         },
         {
-          "call_id": "01KQX7T013EB2SSRB40CC8Z54T",
+          "call_id": "01KQX8GHFEGQJRGM7KDWDTMG6W",
           "name": "create_task",
           "args": {
             "assignee": "intake",
             "due": "2026-04-30",
-            "notes": "Referral appears ready for human intake review. Pending-review hold hold_01kqx7t012dena84mf9tyb3fw5 was created for Lucia Morales, MA CCC-SLP at 2026-04-30T11:00:00-07:00.",
+            "notes": "Referral appears ready for human intake review. Pending-review hold hold_01kqx8ghfecxc2ahwbv6xhem2x was created for Lucia Morales, MA CCC-SLP at 2026-04-30T11:00:00-07:00.",
             "title": "Review intake and slot options for Isabella Lopez"
           },
-          "result_summary": "created task task_01kqx7t013jevb22apgj4ae1yb for intake"
+          "result_summary": "created task task_01kqx8ghferbhaytf59wzhqqg4 for intake"
         },
         {
-          "call_id": "01KQX7T013TMRRH98AFCBT3P5P",
+          "call_id": "01KQX8GHFE978N4K7YYZQDG0K1",
           "name": "draft_message",
           "args": {
             "body": "Hola, gracias por comunicarse con Cedar Kids Therapy. Recibimos la informacion y un miembro del equipo la revisara para confirmar los proximos pasos para una evaluacion.",
@@ -528,13 +528,13 @@
             "language": "es",
             "recipient": "Ana Lopez, 555-0107"
           },
-          "result_summary": "created draft draft_01kqx7t013zc4eb1bmbftkz5x1 (phone, es)"
+          "result_summary": "created draft draft_01kqx8ghfe3d9qg6qftpdxyb6k (phone, es)"
         }
       ],
       "recommended_next_action": "Intake should review the pending slot hold and contact the family with evaluation options.",
       "draft_reply": "Hola, gracias por comunicarse con Cedar Kids Therapy. Recibimos la informacion y un miembro del equipo la revisara para confirmar los proximos pasos para una evaluacion.",
       "task_ids": [
-        "task_01kqx7t013jevb22apgj4ae1yb"
+        "task_01kqx8ghferbhaytf59wzhqqg4"
       ],
       "escalation": null,
       "decision_rationale": "The referral has enough intake detail and verified in-network coverage, so intake can review evaluation availability."
@@ -558,7 +558,7 @@
       "missing_info": [],
       "tools_called": [
         {
-          "call_id": "01KQX7T013DNMWYMWQ9CB1MQ07",
+          "call_id": "01KQX8GHFEAKKVVQDP76DGWRTR",
           "name": "search_patient",
           "args": {
             "dob": "2017-11-02",
@@ -567,7 +567,7 @@
           "result_summary": "1 patient match: Noah Patel (2017-11-02)"
         },
         {
-          "call_id": "01KQX7T013NB04626GKBWQQ7E6",
+          "call_id": "01KQX8GHFFZMEJWM2G4K3W0M9C",
           "name": "lookup_policy",
           "args": {
             "topic": "scheduling"
@@ -575,7 +575,7 @@
           "result_summary": "2 policy snippets for scheduling"
         },
         {
-          "call_id": "01KQX7T013V0CHHHJVQ934XQBD",
+          "call_id": "01KQX8GHFFH25A4MP8KXFMCAC4",
           "name": "lookup_policy",
           "args": {
             "topic": "cancellation"
@@ -583,28 +583,28 @@
           "result_summary": "2 policy snippets for cancellation"
         },
         {
-          "call_id": "01KQX7T013WPW74PFKMA6FRV1V",
+          "call_id": "01KQX8GHFFR3YBMQTTX7JRV9N8",
           "name": "escalate",
           "args": {
             "item_id": "item_8",
             "reason": "Same-day cancellation or reschedule request needs prompt front desk action.",
             "severity": "P1"
           },
-          "result_summary": "created escalation esc_01kqx7t013xhbwzqmtjgam19pr severity P1"
+          "result_summary": "created escalation esc_01kqx8ghffhhsgnskgszzsd5p8 severity P1"
         },
         {
-          "call_id": "01KQX7T013H0KPY3MMP59AGD5Q",
+          "call_id": "01KQX8GHFF2PP7HGJAZZVYA50D",
           "name": "create_task",
           "args": {
             "assignee": "front_desk",
             "due": "2026-04-28",
-            "notes": "Family reported illness and cannot attend today's appointment. Contact the family, cancel today's visit per policy, and review makeup availability.",
-            "title": "Same-day reschedule request for Noah Patel"
+            "notes": "Family reported illness or inability to attend today's appointment. Contact the family, handle today's visit per policy, and review makeup availability.",
+            "title": "Same-day scheduling request for Noah Patel"
           },
-          "result_summary": "created task task_01kqx7t0134s8rnmfeyvqvy0w6 for front_desk"
+          "result_summary": "created task task_01kqx8ghff5qa8bxnj48f2crky for front_desk"
         },
         {
-          "call_id": "01KQX7T0133KR08FHZ5TPZ6ADM",
+          "call_id": "01KQX8GHFFQNJ1Z3TVV7XD5887",
           "name": "draft_message",
           "args": {
             "body": "Hi, thank you for letting us know. A team member will review today's appointment and follow up about rescheduling options.",
@@ -612,19 +612,19 @@
             "language": "en",
             "recipient": "anita.patel@example.com"
           },
-          "result_summary": "created draft draft_01kqx7t013hdm7yknsshnyncq6 (email, en)"
+          "result_summary": "created draft draft_01kqx8ghffwdbrgrmxa3zzgms9 (email, en)"
         }
       ],
       "recommended_next_action": "Front desk should contact the family today to handle the cancellation and review reschedule options.",
       "draft_reply": "Hi, thank you for letting us know. A team member will review today's appointment and follow up about rescheduling options.",
       "task_ids": [
-        "task_01kqx7t0134s8rnmfeyvqvy0w6"
+        "task_01kqx8ghff5qa8bxnj48f2crky"
       ],
       "escalation": {
         "reason": "Same-day cancellation or reschedule request needs prompt front desk action.",
         "severity": "P1"
       },
-      "decision_rationale": "The family reports illness and cannot make today's appointment, making this a P1 same-day operational issue."
+      "decision_rationale": "The family reports a same-day appointment issue, making this a P1 operational workflow."
     }
   ]
 }

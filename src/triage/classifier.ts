@@ -145,27 +145,31 @@ function requiredFieldsFor(
 function hasSafeguardingSignal(text: string): boolean {
   const normalized = text.toLowerCase();
 
-  if (/\b(no|not|denies|denied)\s+(abuse|neglect|violence|unsafe)\b/.test(normalized)) {
-    return false;
-  }
-
-  if (
-    /\b(abuse|abused|neglect|neglected|violence|unsafe caregiving|maltrato)\b/.test(
-      normalized,
-    )
-  ) {
+  // Specific caregiver-harm patterns are evaluated before generic negation.
+  // Example: "no prior abuse, but dad hit him yesterday" must still be P0.
+  if (hasCaregiverHarmSignal(normalized)) {
     return true;
   }
 
+  if (!/\b(abuse|abused|neglect|neglected|violence|unsafe caregiving|maltrato)\b/.test(normalized)) {
+    return false;
+  }
+
+  return !/\b(no|not|denies|denied)\s+(?:prior\s+)?(abuse|neglect|violence|unsafe|unsafe caregiving)\b/.test(
+    normalized,
+  );
+}
+
+function hasCaregiverHarmSignal(normalizedText: string): boolean {
   return (
     /\b(rough with|left (?:him|her|them|the child)?\s*alone|scared to go home|bruises?|le pega|golpea)\b/.test(
-      normalized,
+      normalizedText,
     ) ||
     /\b(dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b.*\b(hit|hits|hitting|hurt|hurting|scares?|shakes?|shaking)\b/.test(
-      normalized,
+      normalizedText,
     ) ||
     /\b(hit|hits|hitting|hurt|hurting|scares?|shakes?|shaking)\b.*\b(dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b/.test(
-      normalized,
+      normalizedText,
     )
   );
 }

@@ -41,4 +41,17 @@ describe("selectSlotForPreference", () => {
 
     assert.equal(selectSlotForPreference([slot], undefined), slot);
   });
+
+  it("understands accented Spanish weekday preferences", () => {
+    const spanishWednesday: Slot = {
+      ...baseSlot,
+      slot_id: "miercoles",
+      start: "2026-04-29T10:00:00-07:00",
+    };
+
+    assert.equal(
+      selectSlotForPreference([spanishWednesday], "miércoles por la mañana"),
+      spanishWednesday,
+    );
+  });
 });

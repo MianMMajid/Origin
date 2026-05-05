@@ -57,6 +57,24 @@ describe("runAgent edge workflows", () => {
     assert.match(output.recommended_next_action, /Billing/i);
     assert.match(createTaskNotes(output), /self-pay|uninsured/i);
   });
+
+  it("does not escalate non-same-day scheduling requests", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "routine_reschedule",
+        subject: "Need to reschedule tomorrow",
+        body:
+          "Can we reschedule tomorrow's 3pm OT appointment to next week? Noah's DOB is 2017-11-02.",
+      }),
+    ]);
+
+    assert.equal(output.classification, "scheduling");
+    assert.equal(output.urgency, "P2");
+    assert.equal(output.escalation, null);
+    assert.equal(output.tools_called.some((call) => call.name === "escalate"), false);
+    assert.match(output.recommended_next_action, /routine scheduling request/i);
+  });
 });
 
 function createTaskNotes(output: Awaited<ReturnType<typeof runAgent>>[number]): string {
