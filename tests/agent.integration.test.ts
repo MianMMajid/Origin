@@ -30,6 +30,13 @@ describe("runAgent edge workflows", () => {
           "We need to cancel today's 2pm OT appointment for Noah Hall. DOB is 2017-11-02. Please call 555-3333.",
       }),
       inboxItem({
+        id: "fyi",
+        received_at: "2026-04-28T05:00:00-07:00",
+        subject: "FYI only",
+        body:
+          "FYI, the school team uploaded a community resource newsletter for your records. No reply needed.",
+      }),
+      inboxItem({
         id: "routine_same_b",
         received_at: "2026-04-28T06:00:00-07:00",
         subject: "Provider follow-up",
@@ -53,6 +60,7 @@ describe("runAgent edge workflows", () => {
         "routine_same_a",
         "routine_same_b",
         "routine_late",
+        "fyi",
       ],
     );
   });

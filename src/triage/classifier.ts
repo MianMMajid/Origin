@@ -83,6 +83,10 @@ export function classifyItem(
     return { classification: "new_referral", urgency: "P2" };
   }
 
+  if (looksLikeLowPriorityFyi(text)) {
+    return { classification: "other", urgency: "P3" };
+  }
+
   return { classification: "other", urgency: "P2" };
 }
 
@@ -204,6 +208,40 @@ function isReferralLike(item: InboxItem): boolean {
 function looksLikeSpam(text: string): boolean {
   return /\b(unsubscribe|crypto|loan offer|seo|advertising|web design|marketing list)\b/i.test(
     text,
+  );
+}
+
+function looksLikeLowPriorityFyi(text: string): boolean {
+  const normalized = text.toLowerCase();
+  const requestText = normalized.replace(
+    /\b(no action needed|no reply needed|does not need a response)\b/g,
+    "",
+  );
+
+  if (
+    !/\b(fyi|for your records|no action needed|no reply needed|does not need a response|just letting you know|just an update|heads up|thank you|thanks|newsletter|community resource|announcement)\b/.test(
+      normalized,
+    )
+  ) {
+    return false;
+  }
+
+  // Keep any item with an implied response, care concern, or operational ask in
+  // the P2/P1 lanes. P3 is only for reviewable but clearly low-priority FYIs.
+  return !(
+    hasActionRequestSignal(requestText) || hasHealthConcernSignal(normalized)
+  );
+}
+
+function hasActionRequestSignal(normalizedText: string): boolean {
+  return /\b(please|can you|could you|would you|need you to|needs you to|requesting|call me|call us|follow up|reply|respond|confirm|schedule|reschedule|cancel|book|send|fax|review|question|help)\b/.test(
+    normalizedText,
+  );
+}
+
+function hasHealthConcernSignal(normalizedText: string): boolean {
+  return /\b(pain|hurt|hurts|injury|injured|fell|fall|sick|fever|vomit|threw up|seizure|regress|worse|unsafe|abuse|neglect|hit|rough|concern|worried|not eating|not sleeping)\b/.test(
+    normalizedText,
   );
 }
 

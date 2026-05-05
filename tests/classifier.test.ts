@@ -73,4 +73,30 @@ describe("classifyItem", () => {
       urgency: "P2",
     });
   });
+
+  it("classifies benign FYI messages as P3", () => {
+    const item = inboxItem({
+      subject: "FYI only",
+      body:
+        "FYI, the school team uploaded a community resource newsletter for your records. No reply needed.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "other",
+      urgency: "P3",
+    });
+  });
+
+  it("keeps actionable FYI messages in the appropriate work queue", () => {
+    const item = inboxItem({
+      subject: "FYI billing question",
+      body:
+        "FYI, I have a question about a denied claim. Could you review the bill and call me?",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "billing_question",
+      urgency: "P2",
+    });
+  });
 });

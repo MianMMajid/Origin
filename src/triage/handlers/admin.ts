@@ -112,6 +112,26 @@ export async function handleComplaint(
 }
 
 export async function handleOther(input: ActionInput): Promise<ActionResult> {
+  if (input.decision.urgency === "P3") {
+    const task = await create_task({
+      assignee: "front_desk",
+      due: input.dueRoutine,
+      title: `Confirm low-priority FYI item ${input.item.id}`,
+      notes:
+        "Message appears to be FYI/admin-only with no requested response or patient-care action. Confirm this is safe to archive or file.",
+    });
+
+    return {
+      draftReply: null,
+      taskIds: [task.data.task_id],
+      escalation: null,
+      recommendedNextAction:
+        "Front desk should confirm no action is needed, then archive or file the update.",
+      decisionRationale:
+        "The message has FYI/no-action cues and no safety, scheduling, referral, billing, complaint, provider follow-up, or clinical signal.",
+    };
+  }
+
   const task = await create_task({
     assignee: "front_desk",
     due: input.dueRoutine,

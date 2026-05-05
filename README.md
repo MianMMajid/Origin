@@ -37,7 +37,7 @@ The agent runs item-level tool calls in source inbox order for deterministic tra
 The agent does four things per item:
 
 1. Extracts intake fields with conservative text patterns: child name, DOB or age, contact, discipline, concern, payer, and member ID.
-2. Classifies and assigns urgency with safety-first rules: safeguarding is `P0`, same-day cancellation/reschedule is `P1`, routine intake, clinical, billing, provider follow-up, and complaint workflows are `P2`, and spam is `P3`.
+2. Classifies and assigns urgency with safety-first rules: safeguarding is `P0`, same-day cancellation/reschedule is `P1`, routine intake, clinical, billing, provider follow-up, and complaint workflows are `P2`, and spam or clearly non-actionable FYI/admin messages are `P3`.
 3. Calls tools that inform or create the recommended action: patient search, policy lookup, insurance verification, slot finding and pending holds, task creation, draft replies, and escalation. A positive active-patient search can reclassify an apparent referral as an existing-patient request.
 4. Returns the output schema exactly, including `tools_called` from `getToolCallsForItem(item.id)` unchanged.
 
