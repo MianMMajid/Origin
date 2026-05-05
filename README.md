@@ -18,7 +18,16 @@ The flags are optional; the commands default to the paths shown above.
 
 ## Architecture
 
-`src/index.ts` owns CLI parsing, trace setup, input reading, and final `buildBatchOutput()` wrapping. `src/agent.ts` processes each inbox item inside `withItemContext()` so every tool call is audit-linked to the correct item.
+`src/index.ts` owns CLI parsing, trace setup, input reading, and final `buildBatchOutput()` wrapping. `src/agent.ts` is intentionally small: it builds batch context and delegates item work to `src/triage/triage-item.ts`.
+
+The triage code is split by responsibility:
+
+- `src/triage/extractor.ts`: deterministic intake extraction.
+- `src/triage/classifier.ts`: classification, urgency, and missing-field rules.
+- `src/triage/handlers/`: small action handlers for safety, scheduling, clinical review, intake, and admin workflows.
+- `src/triage/slots.ts`, `dates.ts`, and `text.ts`: shared utilities with no tool side effects.
+
+Each inbox item is processed inside `withItemContext()` so every tool call is audit-linked to the correct item.
 
 The agent does four things per item:
 
