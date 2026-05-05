@@ -16,6 +16,7 @@ import type {
   ExtractedIntake,
   InboxItem,
   ItemOutput,
+  Patient,
   Slot,
   Urgency,
 } from "./types.js";
@@ -53,24 +54,37 @@ async function triageItem(
 ): Promise<ItemOutput> {
   return withItemContext(item.id, async () => {
     const extracted = extractIntake(item);
-    const decision = classifyItem(item, extracted);
+    let decision = classifyItem(item, extracted);
+    let patientMatches: Patient[] = [];
+
+    if (isDatedDob(extracted.dob_or_age) && extracted.child_name) {
+      const searchResult = await search_patient({
+        name: extracted.child_name,
+        dob: extracted.dob_or_age,
+      });
+      patientMatches = searchResult.data;
+    }
+
+    if (
+      decision.classification === "new_referral" &&
+      patientMatches.some((patient) => patient.status === "active")
+    ) {
+      decision = { classification: "existing_patient_request", urgency: "P2" };
+    }
+
     const missingInfo = missingFieldsFor(decision.classification, extracted);
     const taskIds: string[] = [];
     let draftReply: string | null = null;
     let escalation: ItemOutput["escalation"] = null;
     let recommendedNextAction = "";
     let decisionRationale = "";
+    const knownPatientNote = patientMatches[0]
+      ? ` Patient search found ${patientMatches[0].name} (${patientMatches[0].dob}) with ${patientMatches[0].status} status.`
+      : "";
 
     const dueToday = context.operationalDate;
     const dueSoon = addDays(context.operationalDate, 1);
     const dueRoutine = addDays(context.operationalDate, 2);
-
-    if (isDatedDob(extracted.dob_or_age) && extracted.child_name) {
-      await search_patient({
-        name: extracted.child_name,
-        dob: extracted.dob_or_age,
-      });
-    }
 
     switch (decision.classification) {
       case "safeguarding": {
@@ -194,12 +208,15 @@ async function triageItem(
       case "new_referral":
       case "existing_patient_request": {
         await lookup_policy({ topic: "service_lines" });
+        if (preferredLanguage(item) === "es") {
+          await lookup_policy({ topic: "language_access" });
+        }
         if (missingInfo.length > 0) {
           const task = await create_task({
             assignee: "intake",
             due: dueSoon,
             title: `Complete intake details for ${displayChild(extracted)}`,
-            notes: `Before offering appointment options, collect: ${missingInfo.join(", ")}.`,
+            notes: `Before offering appointment options, collect: ${missingInfo.join(", ")}.${knownPatientNote}`,
           });
           taskIds.push(task.data.task_id);
 
@@ -216,7 +233,9 @@ async function triageItem(
           recommendedNextAction =
             "Intake should collect the missing details before insurance verification or slot review.";
           decisionRationale =
-            "The item appears to be an intake request, but one or more required intake fields are missing.";
+            decision.classification === "existing_patient_request"
+              ? "The item appears to be an intake request for a known active patient, but one or more required intake fields are missing."
+              : "The item appears to be an intake request, but one or more required intake fields are missing.";
           break;
         }
 
@@ -237,7 +256,7 @@ async function triageItem(
             assignee: "billing",
             due: dueSoon,
             title: `Resolve insurance before scheduling ${displayChild(extracted)}`,
-            notes: `${extracted.payer || "Unknown payer"} verification returned ${insurance.data.status}. Review benefits with the family before any slot hold or scheduling workflow.`,
+            notes: `${extracted.payer || "Unknown payer"} verification returned ${insurance.data.status}. Review benefits with the family before any slot hold or scheduling workflow.${knownPatientNote}`,
           });
           taskIds.push(task.data.task_id);
 
@@ -281,15 +300,19 @@ async function triageItem(
             due: dueRoutine,
             title: `Review intake and slot options for ${displayChild(extracted)}`,
             notes:
-              `Referral appears ready for human intake review.${heldSlotSummary || " Review provider availability before contacting the family."}`,
+              `${decision.classification === "existing_patient_request" ? "Known-patient request" : "Referral"} appears ready for human intake review.${heldSlotSummary || " Review provider availability before contacting the family."}${knownPatientNote}`,
           });
           taskIds.push(task.data.task_id);
 
           const target = replyTarget(item, extracted);
+          const intakeNoun =
+            decision.classification === "existing_patient_request"
+              ? "request"
+              : "referral";
           const body =
             preferredLanguage(item) === "es"
               ? "Hola, gracias por comunicarse con Cedar Kids Therapy. Recibimos la informacion y un miembro del equipo la revisara para confirmar los proximos pasos para una evaluacion."
-              : `Hi, thank you for sending ${possessiveChild(extracted)} information. Our intake team will review the referral and follow up about evaluation options.`;
+              : `Hi, thank you for sending ${possessiveChild(extracted)} information. Our intake team will review the ${intakeNoun} and follow up about evaluation options.`;
           await draft_message({
             recipient: target.recipient,
             channel: target.channel,
@@ -302,10 +325,102 @@ async function triageItem(
               ? "Intake should review the pending slot hold and contact the family with evaluation options."
               : "Intake should review the referral and contact the family about evaluation options.";
           decisionRationale =
-            insurance?.data.status === "in_network"
-              ? "The referral has enough intake detail and verified in-network coverage, so intake can review evaluation availability."
-              : "The referral/request has enough clinical intake detail for human intake review.";
+            decision.classification === "existing_patient_request"
+              ? "Patient search found an active matching patient, and the request has enough detail for human intake review."
+              : insurance?.data.status === "in_network"
+                ? "The referral has enough intake detail and verified in-network coverage, so intake can review evaluation availability."
+                : "The referral/request has enough clinical intake detail for human intake review.";
         }
+        break;
+      }
+
+      case "billing_question": {
+        await lookup_policy({ topic: "insurance" });
+        const verification = extracted.payer
+          ? await verify_insurance({
+              payer: extracted.payer,
+              member_id: extracted.member_id || undefined,
+            })
+          : null;
+
+        const task = await create_task({
+          assignee: "billing",
+          due: dueSoon,
+          title: `Review billing question for ${displayChild(extracted)}`,
+          notes:
+            `Billing-related inbox item needs account review before staff replies.${verification ? ` Insurance verification returned ${verification.data.status}.` : ""} Missing context: ${missingInfo.join(", ") || "none"}.${knownPatientNote}`,
+        });
+        taskIds.push(task.data.task_id);
+
+        const target = replyTarget(item, extracted);
+        const body =
+          "Hi, thank you for reaching out. Our billing team will review the account details and follow up with next steps.";
+        await draft_message({
+          recipient: target.recipient,
+          channel: target.channel,
+          body,
+          language: preferredLanguage(item),
+        });
+        draftReply = body;
+        recommendedNextAction =
+          "Billing should review the account, payer details, and message context before responding.";
+        decisionRationale =
+          "The message appears to be about billing, benefits, claims, or payment rather than a new clinical intake.";
+        break;
+      }
+
+      case "provider_followup": {
+        await lookup_policy({ topic: "service_lines" });
+        const task = await create_task({
+          assignee: "intake",
+          due: dueSoon,
+          title: `Route provider follow-up for ${displayChild(extracted)}`,
+          notes:
+            `Provider or partner-office follow-up needs intake review and chart/referral matching. Missing context: ${missingInfo.join(", ") || "none"}.${knownPatientNote}`,
+        });
+        taskIds.push(task.data.task_id);
+
+        const target = replyTarget(item, extracted);
+        const body =
+          "Thank you for the update. Our intake team will review this and route it to the appropriate staff member.";
+        await draft_message({
+          recipient: target.recipient,
+          channel: target.channel,
+          body,
+          language: preferredLanguage(item),
+        });
+        draftReply = body;
+        recommendedNextAction =
+          "Intake should match the follow-up to the correct referral or chart and route it to the responsible staff member.";
+        decisionRationale =
+          "The message reads like a provider or partner-office follow-up rather than a parent scheduling or new-intake request.";
+        break;
+      }
+
+      case "complaint": {
+        const task = await create_task({
+          assignee: "front_desk",
+          due: dueSoon,
+          title: `Review family complaint for ${displayChild(extracted)}`,
+          notes:
+            `Family complaint or service concern needs human review before response. Missing context: ${missingInfo.join(", ") || "none"}.${knownPatientNote}`,
+        });
+        taskIds.push(task.data.task_id);
+
+        const target = replyTarget(item, extracted);
+        const body =
+          "Hi, thank you for letting us know. A team member will review your concern and follow up directly.";
+        await draft_message({
+          recipient: target.recipient,
+          channel: target.channel,
+          body,
+          language: preferredLanguage(item),
+        });
+        draftReply = body;
+        recommendedNextAction =
+          "Front desk should review the concern, identify the related visit or workflow, and route to a supervisor if needed.";
+        decisionRationale =
+          "The message expresses dissatisfaction or a service concern without a safeguarding disclosure.";
         break;
       }
 
@@ -383,6 +498,38 @@ function classifyItem(
     )
   ) {
     return { classification: "clinical_question", urgency: "P2" };
+  }
+
+  if (
+    /\b(billing|bill|invoice|statement|charged|charge|copay|co-pay|claim|superbill|balance|refund|coverage denied|denied claim|authorization denied|auth denied)\b/i.test(
+      text,
+    )
+  ) {
+    return { classification: "billing_question", urgency: "P2" };
+  }
+
+  if (
+    /\b(complaint|unhappy|upset|frustrated|angry|rude|bad experience|never heard back|no one called|wrong provider|wrong appointment)\b/i.test(
+      text,
+    )
+  ) {
+    return { classification: "complaint", urgency: "P2" };
+  }
+
+  if (
+    /\b(provider follow[- ]?up|doctor follow[- ]?up|following up|checking status|progress note|plan of care|signed eval|signed referral|records request|release of information|ROI)\b/i.test(
+      text,
+    )
+  ) {
+    return { classification: "provider_followup", urgency: "P2" };
+  }
+
+  if (
+    /\b(existing patient|current patient|returning patient|already seen|already a patient|has been seeing|sees (?:an?|our) (?:SLP|OT|PT|therapist))\b/i.test(
+      text,
+    )
+  ) {
+    return { classification: "existing_patient_request", urgency: "P2" };
   }
 
   if (
@@ -501,22 +648,7 @@ function missingFieldsFor(
   classification: Classification,
   extracted: ExtractedIntake,
 ): string[] {
-  const required: Array<keyof ExtractedIntake> =
-    classification === "clinical_question"
-      ? ["child_name", "dob_or_age", "parent_contact"]
-      : classification === "safeguarding"
-        ? ["child_name", "dob_or_age", "parent_contact"]
-        : classification === "scheduling"
-          ? ["child_name", "dob_or_age", "parent_contact"]
-        : [
-            "child_name",
-            "dob_or_age",
-            "parent_contact",
-            "discipline",
-            "diagnosis_or_concern",
-            "payer",
-            "member_id",
-          ];
+  const required = requiredFieldsFor(classification);
 
   const labels: Record<keyof ExtractedIntake, string> = {
     child_name: "child name",
@@ -534,6 +666,34 @@ function missingFieldsFor(
       return Array.isArray(value) ? value.length === 0 : !value;
     })
     .map((key) => labels[key]);
+}
+
+function requiredFieldsFor(
+  classification: Classification,
+): Array<keyof ExtractedIntake> {
+  switch (classification) {
+    case "spam":
+      return [];
+    case "clinical_question":
+    case "safeguarding":
+    case "scheduling":
+      return ["child_name", "dob_or_age", "parent_contact"];
+    case "billing_question":
+    case "provider_followup":
+    case "complaint":
+    case "other":
+      return ["child_name", "parent_contact"];
+    default:
+      return [
+        "child_name",
+        "dob_or_age",
+        "parent_contact",
+        "discipline",
+        "diagnosis_or_concern",
+        "payer",
+        "member_id",
+      ];
+  }
 }
 
 function replyTarget(item: InboxItem, extracted: ExtractedIntake): ReplyTarget {
