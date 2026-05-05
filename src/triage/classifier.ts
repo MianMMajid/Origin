@@ -21,12 +21,14 @@ export function classifyItem(
   }
 
   if (
-    /\b(today'?s?|same[- ]day)\b/i.test(text) &&
-    /\b(cancel|cancellation|reschedule|can't make|cannot make|sick|ill|threw up|vomit)\b/i.test(
-      text,
-    )
+    hasSchedulingSignal(text) &&
+    (hasSameDaySignal(text) || hasTodayAppointmentSignal(text))
   ) {
     return { classification: "scheduling", urgency: "P1" };
+  }
+
+  if (hasSchedulingSignal(text)) {
+    return { classification: "scheduling", urgency: "P2" };
   }
 
   if (
@@ -102,6 +104,10 @@ export function missingFieldsFor(
 
   return required
     .filter((key) => {
+      if (key === "member_id" && isSelfPayPayer(extracted.payer)) {
+        return false;
+      }
+
       const value = extracted[key];
       return Array.isArray(value) ? value.length === 0 : !value;
     })
@@ -137,9 +143,50 @@ function requiredFieldsFor(
 }
 
 function hasSafeguardingSignal(text: string): boolean {
-  return /\b(abuse|abused|harm|harmed|unsafe|neglect|neglected|rough with|hit|hitting|hurt|violence)\b/i.test(
+  const normalized = text.toLowerCase();
+
+  if (/\b(no|not|denies|denied)\s+(abuse|neglect|violence|unsafe)\b/.test(normalized)) {
+    return false;
+  }
+
+  if (
+    /\b(abuse|abused|neglect|neglected|violence|unsafe caregiving|maltrato)\b/.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+
+  return (
+    /\b(rough with|left (?:him|her|them|the child)?\s*alone|scared to go home|bruises?|le pega|golpea)\b/.test(
+      normalized,
+    ) ||
+    /\b(dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b.*\b(hit|hits|hitting|hurt|hurting|scares?|shakes?|shaking)\b/.test(
+      normalized,
+    ) ||
+    /\b(hit|hits|hitting|hurt|hurting|scares?|shakes?|shaking)\b.*\b(dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b/.test(
+      normalized,
+    )
+  );
+}
+
+function hasSchedulingSignal(text: string): boolean {
+  return /\b(cancel|cancellation|reschedule|can't make|cannot make|can'?t come|move (?:the )?(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit)\b/i.test(
     text,
   );
+}
+
+function hasSameDaySignal(text: string): boolean {
+  return /\b(today'?s?|same[- ]day|this afternoon|this morning|in \d+ minutes?|in an hour|within the hour)\b/i.test(
+    text,
+  );
+}
+
+function hasTodayAppointmentSignal(text: string): boolean {
+  return /\b(?:\d{1,2})(?::\d{2})?\s*(?:am|pm)\b/i.test(text) &&
+    !/\b(tomorrow|next week|next month|next monday|next tuesday|next wednesday|next thursday|next friday|next saturday|next sunday)\b/i.test(
+      text,
+    );
 }
 
 function isReferralLike(item: InboxItem): boolean {
@@ -153,5 +200,14 @@ function isReferralLike(item: InboxItem): boolean {
 function looksLikeSpam(text: string): boolean {
   return /\b(unsubscribe|crypto|loan offer|seo|advertising|web design|marketing list)\b/i.test(
     text,
+  );
+}
+
+function isSelfPayPayer(payer: string | null): boolean {
+  return Boolean(
+    payer &&
+      /\b(self[- ]?pay|private pay|cash pay|no insurance|uninsured)\b/i.test(
+        payer,
+      ),
   );
 }

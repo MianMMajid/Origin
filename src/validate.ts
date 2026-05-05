@@ -39,6 +39,11 @@ function main(): void {
     fail(errors);
   }
 
+  if (!Array.isArray(input)) {
+    errors.push("input: expected an array of inbox items");
+    fail(errors);
+  }
+
   const ajv = new Ajv({ allErrors: true, strict: false });
   addFormats(ajv);
   const validate = ajv.compile(schema);
@@ -50,18 +55,113 @@ function main(): void {
     }
   }
 
+  if (errors.length > 0) {
+    fail(errors);
+  }
+
   validateItemCoverage(input, output, errors);
   validateSummary(output, errors);
   validateHumanReview(output, errors);
   validateToolThreshold(output, errors);
   validateForbiddenTools(output, trace, errors);
   validateTraceMatch(output, trace, errors);
+  validateCrossFieldInvariants(output, errors);
 
   if (errors.length > 0) {
     fail(errors);
   }
 
   console.log("Validation passed.");
+}
+
+function validateCrossFieldInvariants(
+  output: BatchOutput,
+  errors: string[],
+): void {
+  for (const item of output.items) {
+    validateTaskIds(item.item_id, item.task_ids, item.tools_called, errors);
+    validateDraftReply(item.item_id, item.draft_reply, item.tools_called, errors);
+    validateEscalation(item, errors);
+  }
+}
+
+function validateTaskIds(
+  itemId: string,
+  taskIds: string[],
+  calls: ToolCall[],
+  errors: string[],
+): void {
+  const createdTaskIds = new Set(
+    calls
+      .filter((call) => call.name === "create_task")
+      .flatMap((call) => {
+        const match = call.result_summary.match(/\bcreated task (task_[a-z0-9]+)\b/i);
+        return match ? [match[1]] : [];
+      }),
+  );
+
+  for (const taskId of taskIds) {
+    if (!createdTaskIds.has(taskId)) {
+      errors.push(
+        `cross-field: ${itemId} task_id ${taskId} was not created by a surfaced create_task call`,
+      );
+    }
+  }
+}
+
+function validateDraftReply(
+  itemId: string,
+  draftReply: string | null,
+  calls: ToolCall[],
+  errors: string[],
+): void {
+  const draftBodies = calls
+    .filter((call) => call.name === "draft_message")
+    .map((call) => call.args.body)
+    .filter((body): body is string => typeof body === "string");
+
+  if (draftReply === null) {
+    return;
+  }
+
+  if (!draftBodies.includes(draftReply)) {
+    errors.push(
+      `cross-field: ${itemId} draft_reply does not match a surfaced draft_message body`,
+    );
+  }
+}
+
+function validateEscalation(
+  item: BatchOutput["items"][number],
+  errors: string[],
+): void {
+  if (item.urgency !== "P0" && item.urgency !== "P1") {
+    return;
+  }
+
+  if (!item.escalation) {
+    errors.push(`cross-field: ${item.item_id} ${item.urgency} is missing escalation`);
+    return;
+  }
+
+  if (item.escalation.severity !== item.urgency) {
+    errors.push(
+      `cross-field: ${item.item_id} escalation severity ${item.escalation.severity} does not match urgency ${item.urgency}`,
+    );
+  }
+
+  const hasMatchingEscalateCall = item.tools_called.some(
+    (call) =>
+      call.name === "escalate" &&
+      call.args.reason === item.escalation?.reason &&
+      call.args.severity === item.escalation?.severity,
+  );
+
+  if (!hasMatchingEscalateCall) {
+    errors.push(
+      `cross-field: ${item.item_id} escalation does not match a surfaced escalate call`,
+    );
+  }
 }
 
 function validateItemCoverage(

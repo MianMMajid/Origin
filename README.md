@@ -6,9 +6,11 @@
 npm install
 npm run triage -- --input data/inbox.json --output output.json --trace .trace/tool-calls.jsonl
 npm run validate -- --input data/inbox.json --output output.json --trace .trace/tool-calls.jsonl
+npm test
+npm run check
 ```
 
-The flags are optional; the commands default to the paths shown above.
+The triage/validate flags are optional; the commands default to the paths shown above. `npm run check` runs typecheck, unit/integration tests, triage, validation, and packaging.
 
 ## Stack and runtime
 
@@ -26,6 +28,7 @@ The triage code is split by responsibility:
 - `src/triage/classifier.ts`: classification, urgency, and missing-field rules.
 - `src/triage/handlers/`: small action handlers for safety, scheduling, clinical review, intake, and admin workflows.
 - `src/triage/slots.ts`, `dates.ts`, and `text.ts`: shared utilities with no tool side effects.
+- `tests/`: edge-case tests for extraction, classification, slot preference behavior, full agent workflows, and validator failure paths.
 
 Each inbox item is processed inside `withItemContext()` so every tool call is audit-linked to the correct item.
 
@@ -48,6 +51,8 @@ Slot holds are only pending review. The agent does not schedule appointments or 
 
 Production eval should include schema/audit validation, golden synthetic inboxes, hidden variants, safety-focused red-team cases, tool-call relevance review, and human reviewer agreement on classification, urgency, missing fields, and next action.
 
+Current automated coverage includes representative edge cases for safeguarding precedence, negated safety language, non-safety pain wording, same-day versus non-same-day scheduling, alternate intake labels, accented Spanish cues, self-pay routing, multi-discipline referrals, no suitable slot matches, and malformed validation output.
+
 ## What I chose not to build, and why
 
 - Runtime LLM orchestration: useful for robustness, but deterministic rules are faster to review and safer for a short prototype without relying on a provider key.
@@ -58,8 +63,7 @@ Production eval should include schema/audit validation, golden synthetic inboxes
 
 ## What I would do with another 4 hours
 
-- Add unit tests for extraction, classification, urgency calibration, and hidden-variant-style phrasing.
 - Add an optional LLM classifier/extractor behind a schema guard, with deterministic fallback when no API key is present.
 - Build a small evaluation harness that scores tool relevance and compares outputs to expected triage labels.
 - Improve Spanish handling with approved translated templates and accent-preserving output.
-- Add stronger slot preference ranking and an explicit "no suitable slot found" task note when availability conflicts with family preferences.
+- Add broader fixture packs for OCR-heavy faxes, unsupported languages, payer/document conflicts, and provider specialty constraints.

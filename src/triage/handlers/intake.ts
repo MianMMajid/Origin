@@ -53,6 +53,31 @@ export async function handleReferralOrExistingRequest(
     return handleIncompleteReferral(input);
   }
 
+  if (isSelfPayPayer(extracted.payer)) {
+    await lookup_policy({ topic: "insurance" });
+    const task = await create_task({
+      assignee: "billing",
+      due: input.dueSoon,
+      title: `Review self-pay options for ${displayChild(extracted)}`,
+      notes: `Family appears to be self-pay or uninsured. Review private-pay options before any slot hold or scheduling workflow.${input.knownPatientNote}`,
+    });
+    const draftReply = await draftReplyFor(
+      item,
+      extracted,
+      `Hi, thank you for sending ${possessiveChild(extracted)} information. Our billing team will review payment options before we move forward with scheduling. A team member will follow up with next steps.`,
+    );
+
+    return {
+      draftReply,
+      taskIds: [task.data.task_id],
+      escalation: null,
+      recommendedNextAction:
+        "Billing should review self-pay options before intake considers appointment availability.",
+      decisionRationale:
+        "The referral has enough clinical intake detail, but the family appears to be self-pay or uninsured and needs billing review before slot holds.",
+    };
+  }
+
   const insurance = extracted.payer
     ? await verify_insurance({
         payer: extracted.payer,
@@ -127,23 +152,39 @@ async function handleReadyReferral(
   insuranceIsInNetwork: boolean,
 ): Promise<ActionResult> {
   const { item, extracted, decision, dueRoutine, knownPatientNote } = input;
-  const firstDiscipline = extracted.discipline?.[0];
   let heldSlotSummary = "";
+  let slotReviewNote = "";
 
-  if (firstDiscipline) {
+  if ((extracted.discipline?.length || 0) > 1) {
+    slotReviewNote =
+      " Multiple disciplines requested; review each discipline separately before any slot hold.";
+  } else if (extracted.discipline?.[0]) {
+    const firstDiscipline = extracted.discipline[0];
     const preferences = schedulingPreference(item);
     const slots = await find_slots({
       discipline: firstDiscipline,
       preferences,
       language: preferredLanguage(item),
     });
-    const firstSlot = selectSlotForPreference(slots.data, preferences);
+    const currentSlots = slots.data.filter((slot) =>
+      startsOnOrAfter(slot.start, input.dueToday),
+    );
+    const firstSlot = selectSlotForPreference(currentSlots, preferences);
     if (firstSlot) {
       const hold = await hold_slot({
         slot_id: firstSlot.slot_id,
         patient_ref: extracted.child_name || extracted.parent_contact || item.id,
       });
       heldSlotSummary = ` Pending-review hold ${hold.data.hold_id} was created for ${firstSlot.provider_name} at ${firstSlot.start}.`;
+    } else if (slots.data.length === 0) {
+      slotReviewNote =
+        " No provider slots were returned for the requested discipline and language; review waitlist or alternate options.";
+    } else if (currentSlots.length === 0) {
+      slotReviewNote =
+        " Returned slots are before the operational date; review current provider availability before contacting the family.";
+    } else {
+      slotReviewNote =
+        " No suitable slot matched the stated preference; review alternate options before contacting the family.";
     }
   }
 
@@ -152,7 +193,7 @@ async function handleReadyReferral(
     due: dueRoutine,
     title: `Review intake and slot options for ${displayChild(extracted)}`,
     notes:
-      `${decision.classification === "existing_patient_request" ? "Known-patient request" : "Referral"} appears ready for human intake review.${heldSlotSummary || " Review provider availability before contacting the family."}${knownPatientNote}`,
+      `${decision.classification === "existing_patient_request" ? "Known-patient request" : "Referral"} appears ready for human intake review.${heldSlotSummary || slotReviewNote || " Review provider availability before contacting the family."}${knownPatientNote}`,
   });
   const body =
     preferredLanguage(item) === "es"
@@ -167,6 +208,8 @@ async function handleReadyReferral(
     recommendedNextAction:
       heldSlotSummary.length > 0
         ? "Intake should review the pending slot hold and contact the family with evaluation options."
+        : slotReviewNote.length > 0
+          ? "Intake should review provider availability and alternatives before contacting the family."
         : "Intake should review the referral and contact the family about evaluation options.",
     decisionRationale:
       decision.classification === "existing_patient_request"
@@ -175,4 +218,17 @@ async function handleReadyReferral(
           ? "The referral has enough intake detail and verified in-network coverage, so intake can review evaluation availability."
           : "The referral/request has enough clinical intake detail for human intake review.",
   };
+}
+
+function isSelfPayPayer(payer: string | null): boolean {
+  return Boolean(
+    payer &&
+      /\b(self[- ]?pay|private pay|cash pay|no insurance|uninsured)\b/i.test(
+        payer,
+      ),
+  );
+}
+
+function startsOnOrAfter(isoDateTime: string, date: string): boolean {
+  return isoDateTime.slice(0, 10) >= date;
 }

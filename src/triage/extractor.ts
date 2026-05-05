@@ -21,26 +21,36 @@ export function extractIntake(item: InboxItem): ExtractedIntake {
     dob_or_age: firstClean([
       matchText(text, /\bDOB:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\b/i),
       matchText(text, /\bDOB\s+(?:is\s+)?([0-9]{4}-[0-9]{2}-[0-9]{2})\b/i),
+      matchText(
+        text,
+        /\b(?:DOB|date of birth)[:\s]+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})\b/i,
+        normalizeSlashDate,
+      ),
       matchText(text, /\b(\d+)[- ]year[- ]old\b/i, (age) => `${age}-year-old`),
+      matchText(text, /\b(\d+)\s*y\/o\b/i, (age) => `${age} years`),
+      matchText(text, /\b(\d+)\s*months?\b/i, (months) => `${months} months`),
       matchText(
         text,
         /\b(?:he|she|they)\s+is\s+(\d+)\b/i,
         (age) => `${age} years`,
       ),
-      matchText(text, /\btiene\s+(\d+)\s+anos\b/i, (age) => `${age} years`),
+      matchText(text, /\btiene\s+(\d+)\s+a[nñ]os\b/i, (age) => `${age} years`),
     ]),
     parent_contact: extractContact(item),
     discipline: extractDisciplines(text),
     diagnosis_or_concern: extractConcern(text),
     payer: firstClean([
       matchText(text, /\bInsurance:\s*([^.\n]+)/i),
+      matchText(text, /\b(?:Payer|Plan):\s*([^.\n]+)/i),
       matchText(text, /\bInsurance\s+is\s+([^,.\n]+)/i),
       matchText(text, /\bTenemos\s+([^,.\n]+)\b/i),
+      matchText(text, /\b(self[- ]?pay|private pay|cash pay|no insurance|uninsured)\b/i),
     ]),
     member_id: firstClean([
       matchText(text, /\bMember ID:\s*([A-Z0-9-]+)/i),
-      matchText(text, /\bmember\s+ID\s+([A-Z0-9-]+)/i),
-      matchText(text, /\bmiembro\s+([A-Z0-9-]+)/i),
+      matchText(text, /\b(?:member|subscriber)\s+(?:ID|number)\s*[:#]?\s*([A-Z0-9-]+)/i),
+      matchText(text, /\bpolicy\s*#\s*([A-Z0-9-]+)/i),
+      matchText(text, /\b(?:miembro|n[uú]mero de miembro)\s*[:#]?\s*([A-Z0-9-]+)/i),
     ]),
   };
 }
@@ -61,7 +71,7 @@ export function replyTarget(
     return { recipient: item.sender, channel: "portal" };
   }
 
-  const phone = matchText(item.body, /\b(\d{3}-\d{4})\b/);
+  const phone = extractPhone(item.body);
   if (phone) {
     return {
       recipient: extracted.parent_contact || phone,
@@ -74,6 +84,8 @@ export function replyTarget(
 
 export function preferredLanguage(item: InboxItem): "en" | "es" {
   return /\b(hola|llamo|hija|hijo|evaluacion|habla|espanol|telefono|gracias)\b/i.test(
+    searchableText(item),
+  ) || /\b(spanish|espa[nñ]ol|tel[eé]fono|evaluaci[oó]n)\b/i.test(
     searchableText(item),
   )
     ? "es"
@@ -108,6 +120,7 @@ function extractChildName(item: InboxItem): string | null {
 
   return firstClean([
     matchText(text, /\bChild:\s*([^.\n]+)/i),
+    matchText(text, /\b(?:Patient|Client|Child name):\s*([^.\n]+)/i),
     matchText(item.subject, /\bReferral:\s*([^-]+?)(?:\s+-|$)/i),
     matchText(
       item.subject,
@@ -149,7 +162,7 @@ function extractContact(item: InboxItem): string | null {
       item.channel === "portal_message" ? item.sender : null,
     ]),
   );
-  const phone = matchText(text, /\b(\d{3}-\d{4})\b/);
+  const phone = extractPhone(text);
   const email = firstClean([
     matchText(text, /\b([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/i),
     matchText(item.sender, /<([^>]+)>/),
@@ -186,4 +199,17 @@ function extractConcern(text: string): string | null {
     matchText(text, /\b(speech therapy openings)\b/i),
     matchText(text, /\b(evaluacion de habla)\b/i),
   ]);
+}
+
+function extractPhone(text: string): string | null {
+  return firstClean([
+    matchText(text, /(\(\d{3}\)[-.\s]\d{3}[-.\s]\d{4})\b/),
+    matchText(text, /\b(\d{3}[-.\s]\d{3}[-.\s]\d{4})\b/),
+    matchText(text, /\b(\d{3}-\d{4})\b/),
+  ]);
+}
+
+function normalizeSlashDate(date: string): string {
+  const [month, day, year] = date.split("/");
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
