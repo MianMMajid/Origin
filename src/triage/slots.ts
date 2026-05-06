@@ -19,16 +19,40 @@ export function selectSlotForPreference(
   const normalized = preference.toLowerCase();
 
   let candidates = [...ageCompatibleSlots];
-  if (/\b(after school|afternoon|pm)\b/.test(normalized)) {
+  const excludesMorning =
+    /\b(no|not|without|avoid|sin)\s+(?:early\s+)?(?:mornings?|ma[nñ]anas?)\b/.test(
+      normalized,
+    ) || /\bno\s+por\s+la\s+ma[nñ]ana\b/.test(normalized);
+  const excludesAfternoon =
+    /\b(no|not|without|avoid|sin)\s+(?:after school|afternoons?|pm|tardes?)\b/.test(
+      normalized,
+    ) || /\bno\s+por\s+la\s+tarde\b/.test(normalized);
+  const excludedWeekdays = excludedDays(normalized);
+
+  if (excludesMorning) {
+    candidates = candidates.filter((slot) => hourFor(slot.start) >= 12);
+  }
+  if (excludesAfternoon) {
+    candidates = candidates.filter((slot) => hourFor(slot.start) < 12);
+  }
+  if (excludedWeekdays.length > 0) {
+    candidates = candidates.filter(
+      (slot) => !excludedWeekdays.includes(weekdayFor(slot.start)),
+    );
+  }
+
+  if (!excludesAfternoon && /\b(after school|afternoon|pm)\b/.test(normalized)) {
     candidates = candidates.filter((slot) => hourFor(slot.start) >= 15);
-  } else if (/\b(morning|am|ma[nñ]ana)\b/.test(normalized)) {
+  } else if (!excludesMorning && /\b(morning|am|ma[nñ]ana)\b/.test(normalized)) {
     candidates = candidates.filter((slot) => hourFor(slot.start) < 12);
   }
 
   // A named weekday is a hard family preference. If no slot matches it, return
   // no slot so intake can review alternatives instead of holding a misleading
   // appointment.
-  const requestedWeekdays = requestedDays(normalized);
+  const requestedWeekdays = requestedDays(normalized).filter(
+    (day) => !excludedWeekdays.includes(day),
+  );
   if (requestedWeekdays.length > 0) {
     candidates = candidates.filter((slot) =>
       requestedWeekdays.includes(weekdayFor(slot.start)),
@@ -141,6 +165,48 @@ function requestedDays(preference: string): number[] {
     [/\b(thursdays?|thurs|thu|jueves)\b/, 4],
     [/\b(fridays?|fri|viernes)\b/, 5],
     [/\b(saturdays?|sat|s[aá]bados?|s[aá]bado)\b/, 6],
+  ];
+
+  for (const [pattern, day] of checks) {
+    if (pattern.test(preference)) {
+      days.push(day);
+    }
+  }
+
+  return days;
+}
+
+function excludedDays(preference: string): number[] {
+  const days: number[] = [];
+  const checks: Array<[RegExp, number]> = [
+    [
+      /\b(?:no|not|without|avoid|sin)\s+(?:sundays?|sun|domingos?|domingo)\b/,
+      0,
+    ],
+    [
+      /\b(?:no|not|without|avoid|sin)\s+(?:mondays?|mon|lunes)\b/,
+      1,
+    ],
+    [
+      /\b(?:no|not|without|avoid|sin)\s+(?:tuesdays?|tues|tue|martes)\b/,
+      2,
+    ],
+    [
+      /\b(?:no|not|without|avoid|sin)\s+(?:wednesdays?|wed|mi[eé]rcoles)\b/,
+      3,
+    ],
+    [
+      /\b(?:no|not|without|avoid|sin)\s+(?:thursdays?|thurs|thu|jueves)\b/,
+      4,
+    ],
+    [
+      /\b(?:no|not|without|avoid|sin)\s+(?:fridays?|fri|viernes)\b/,
+      5,
+    ],
+    [
+      /\b(?:no|not|without|avoid|sin)\s+(?:saturdays?|sat|s[aá]bados?|s[aá]bado)\b/,
+      6,
+    ],
   ];
 
   for (const [pattern, day] of checks) {

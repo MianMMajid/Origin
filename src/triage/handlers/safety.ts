@@ -1,6 +1,6 @@
 import { create_task, escalate, lookup_policy } from "../../tools.js";
 import type { ActionInput, ActionResult } from "../model.js";
-import { displayChild } from "../extractor.js";
+import { displayChild, preferredLanguage } from "../extractor.js";
 import { searchableText } from "../text.js";
 import { draftReplyFor } from "./common.js";
 
@@ -9,6 +9,7 @@ export async function handleSafeguarding(
 ): Promise<ActionResult> {
   const { item, extracted, dueToday } = input;
   const medicalEmergency = hasMedicalEmergencyReviewSignal(item);
+  const spanish = preferredLanguage(item) === "es";
   const escalationReason = medicalEmergency
     ? "Message suggests a current medical emergency or imminent harm and needs immediate clinical lead review."
     : "Message suggests safeguarding risk or imminent harm and needs same-hour clinical lead review.";
@@ -32,9 +33,7 @@ export async function handleSafeguarding(
   const draftReply = await draftReplyFor(
     item,
     extracted,
-    medicalEmergency
-      ? "Hi, thank you for contacting Cedar Kids Therapy. We received your message. If your child is having trouble breathing, is unresponsive, is having an ongoing serious seizure, or may have ingested medication or poison, please call 911 or local emergency services now. Our team will review this promptly."
-      : "Hi, thank you for contacting Cedar Kids Therapy. We received your message and a member of our team will review it promptly and follow up.",
+    safetyReplyBody({ medicalEmergency, spanish }),
   );
 
   return {
@@ -55,7 +54,7 @@ export async function handleSafeguarding(
 function hasMedicalEmergencyReviewSignal(item: ActionInput["item"]): boolean {
   const text = searchableText(item).toLowerCase();
 
-  return /\b(cannot breathe|can'?t breathe|not breathing|trouble breathing|difficulty breathing|choking|unconscious|unresponsive|blue lips|blue face|overdose|swallowed (?:a )?(?:bottle of )?(?:pills|medication|medicine)|took (?:a )?(?:bottle of )?(?:pills|medication|medicine))\b/.test(
+  return /\b(cannot breathe|can not breathe|can'?t breathe|unable to breathe|not breathing|trouble breathing|difficulty breathing|choking|unconscious|unresponsive|blue lips|blue face|face is blue|turn(?:ed|ing)? blue|overdose|swallowed (?:a )?(?:bottle of )?(?:pills|medication|medicine)|took (?:a )?(?:bottle of )?(?:pills|medication|medicine)|no puede respirar|no esta respirando|no está respirando)\b/.test(
     text,
   ) || (
     /\bseizures?\b/.test(text) &&
@@ -63,4 +62,26 @@ function hasMedicalEmergencyReviewSignal(item: ActionInput["item"]): boolean {
       text,
     )
   );
+}
+
+function safetyReplyBody({
+  medicalEmergency,
+  spanish,
+}: {
+  medicalEmergency: boolean;
+  spanish: boolean;
+}): string {
+  if (medicalEmergency && spanish) {
+    return "Hola, gracias por contactar a Cedar Kids Therapy. Recibimos su mensaje. Si su hijo tiene dificultad para respirar, no responde, tiene una convulsion grave en curso, o pudo haber ingerido medicamento o veneno, llame al 911 o a los servicios de emergencia locales ahora. Nuestro equipo revisara esto pronto.";
+  }
+
+  if (medicalEmergency) {
+    return "Hi, thank you for contacting Cedar Kids Therapy. We received your message. If your child is having trouble breathing, is unresponsive, is having an ongoing serious seizure, or may have ingested medication or poison, please call 911 or local emergency services now. Our team will review this promptly.";
+  }
+
+  if (spanish) {
+    return "Hola, gracias por contactar a Cedar Kids Therapy. Recibimos su mensaje y un miembro de nuestro equipo lo revisara pronto y dara seguimiento.";
+  }
+
+  return "Hi, thank you for contacting Cedar Kids Therapy. We received your message and a member of our team will review it promptly and follow up.";
 }

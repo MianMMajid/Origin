@@ -19,21 +19,15 @@ export function classifyItem(
     return { classification: "safeguarding", urgency: "P0" };
   }
 
-  const hasScheduling = hasSchedulingSignal(text);
+  const hasScheduling = hasSchedulingSignal(
+    stripNegatedSameDaySchedulingSignals(text),
+  );
 
   if (
     hasScheduling &&
     hasSameDayAppointmentSignal(text, item.received_at)
   ) {
     return { classification: "scheduling", urgency: "P1" };
-  }
-
-  if (hasBillingSignal(text)) {
-    return { classification: "billing_question", urgency: "P2" };
-  }
-
-  if (hasComplaintSignal(text)) {
-    return { classification: "complaint", urgency: "P2" };
   }
 
   // Routine scheduling should not page/escalate unless it is same-day.
@@ -45,8 +39,16 @@ export function classifyItem(
     return { classification: "spam", urgency: "P3" };
   }
 
+  if (hasComplaintSignal(text)) {
+    return { classification: "complaint", urgency: "P2" };
+  }
+
+  if (hasBillingSignal(text)) {
+    return { classification: "billing_question", urgency: "P2" };
+  }
+
   if (
-    /\b(is it normal|should i|worried|advice|before booking|wait until)\b/i.test(
+    /\b(is it normal|should i|should we|when should (?:i|we)|worried|advice|before booking|wait until)\b/i.test(
       text,
     )
   ) {
@@ -71,6 +73,10 @@ export function classifyItem(
 
   if (hasCompleteReferralIntake(extracted)) {
     return { classification: "new_referral", urgency: "P2" };
+  }
+
+  if (isIntakePacketResendRequest(text)) {
+    return { classification: "other", urgency: "P2" };
   }
 
   // Missing-paperwork checks come after complete-intake detection so hidden
@@ -154,6 +160,10 @@ function requiredFieldsFor(
 function hasSafeguardingSignal(text: string): boolean {
   const normalized = text.toLowerCase();
 
+  if (isNegatedSafetyOnly(normalized)) {
+    return false;
+  }
+
   // Specific high-risk patterns are evaluated before generic negation so mixed
   // statements like "no prior abuse, but dad hit him" still escalate.
   if (
@@ -183,7 +193,7 @@ function hasSafeguardingSignal(text: string): boolean {
 
 function hasSelfHarmSignal(normalizedText: string): boolean {
   return (
-    /\b(suicidal|suicide|self[- ]?harm|self[- ]?injur(?:y|ies|ing)|wants? to die|wants? to hurt (?:himself|herself|themself|themselves|self)|(?:hurt|harm|kill)(?:ing)? (?:himself|herself|themself|themselves|self))\b/.test(
+    /\b(suicidal|suicide|self[- ]?harm|self[- ]?injur(?:y|ies|ing)|wants? to die|wants? to hurt (?:himself|herself|themself|themselves|self)|(?:hurt|harm|kill)(?:ing)? (?:himself|herself|themself|themselves|self)|se quiere matar|quiere matarse|quiere morir)\b/.test(
       normalizedText,
     ) ||
     /\b(?:can'?t|cannot|can not|unable to)\s+keep\s+(?:him|her|them|my child|my son|my daughter|the child)\s+safe(?:\s+(?:tonight|today|right now|now|this evening|at home))?\b/.test(
@@ -216,12 +226,14 @@ function hasThreatToOthersSignal(normalizedText: string): boolean {
 }
 
 function hasImminentDangerSignal(normalizedText: string): boolean {
+  const elopementText = normalizedText.replace(/\brunning late\b/g, "");
+
   return (
-    /\b(run|running|ran|bolt|bolting|elope|eloping|elopement)\b.*\b(traffic|street|road|parking lot|highway)\b/.test(
-      normalizedText,
+    /\b(run|running|ran|bolt|bolting|elope|eloping|elopement)\b[^.?!;]{0,30}\b(?:into|toward|onto|across|in front of)?\s*(?:traffic|street|road|parking lot|highway)\b/.test(
+      elopementText,
     ) ||
-    /\b(traffic|street|road|parking lot|highway)\b.*\b(run|running|ran|bolt|bolting|elope|eloping)\b/.test(
-      normalizedText,
+    /\b(?:traffic|street|road|parking lot|highway)\b[^.?!;]{0,30}\b(?:run|running|ran|bolt|bolting|elope|eloping)\b/.test(
+      elopementText,
     ) ||
     /\b(?:jump|jumping|climb|climbing|trying to jump|tried to jump|attempted to jump)\b.*\b(?:out of|from|through)?\s*(?:the )?(?:window|balcony|roof)\b/.test(
       normalizedText,
@@ -233,8 +245,12 @@ function hasImminentDangerSignal(normalizedText: string): boolean {
 }
 
 function hasMedicalEmergencySignal(normalizedText: string): boolean {
+  if (isHypotheticalEmergencyAdviceQuestion(normalizedText)) {
+    return false;
+  }
+
   const severeEmergency =
-    /\b(cannot breathe|can'?t breathe|not breathing|trouble breathing|difficulty breathing|choking|unconscious|blue lips|overdose|swallowed (?:a )?(?:bottle of )?(?:pills|medication|medicine)|took (?:a )?(?:bottle of )?(?:pills|medication|medicine))\b/.test(
+    /\b(cannot breathe|can not breathe|can'?t breathe|unable to breathe|not breathing|trouble breathing|difficulty breathing|choking|unconscious|unresponsive|blue lips|blue face|face is blue|turn(?:ed|ing)? blue|overdose|swallowed (?:a )?(?:bottle of )?(?:pills|medication|medicine)|took (?:a )?(?:bottle of )?(?:pills|medication|medicine)|no puede respirar|no esta respirando|no está respirando)\b/.test(
       normalizedText,
     ) ||
     hasCurrent911Signal(normalizedText) ||
@@ -256,7 +272,26 @@ function hasCurrent911Signal(normalizedText: string): boolean {
 }
 
 function hasHypothetical911AdviceQuestion(normalizedText: string): boolean {
-  return /\b(?:should|when should|would|do (?:i|we) need to)\b[^.?!;]{0,50}\b(?:call|dial)\s+911\b[^.?!;]{0,80}\b(?:if|when|another|again|someday|next time|in case)\b/.test(
+  if (hasImmediateTimingCue(normalizedText)) {
+    return false;
+  }
+
+  return /\b(?:should|when should|would|do (?:i|we) need to)\b[^.?!;]{0,50}\b(?:call|dial)\s+911\b(?:[^.?!;]{0,80}\b(?:if|when|another|again|someday|next time|in case)\b)?/.test(
+    normalizedText,
+  );
+}
+
+function isHypotheticalEmergencyAdviceQuestion(normalizedText: string): boolean {
+  return (
+    !hasImmediateTimingCue(normalizedText) &&
+    /\b(?:should|when should|would|do (?:i|we) need to)\b[^.?!;]{0,50}\b(?:call|dial)\s+911\b[^.?!;]{0,120}\b(?:if|when|another|again|someday|next time|in case)\b/.test(
+      normalizedText,
+    )
+  );
+}
+
+function hasImmediateTimingCue(normalizedText: string): boolean {
+  return /\b(right now|now|today|tonight|this evening|currently|active|ongoing|just happened|just had)\b/.test(
     normalizedText,
   );
 }
@@ -306,7 +341,7 @@ function hasHistoricalEmergencyContext(normalizedText: string): boolean {
 
 function hasSexualBoundarySignal(normalizedText: string): boolean {
   return (
-    /\b(inappropriate touching|touched (?:his|her|their) private|touch(?:ed|ing)? (?:him|her|them|my child|my son|my daughter).*(?:private parts?|genitals?)|molest(?:ed|ation)?|sexual assault)\b/.test(
+    /\b(inappropriate touching|touched (?:his|her|their) private|touch(?:ed|ing)? (?:him|her|them|my child|my son|my daughter).*(?:private parts?|genitals?)|molest(?:ed|ation)?|sexual assault|rape|raped)\b/.test(
       normalizedText,
     ) ||
     /\b(?:uncle|aunt|adult|teacher|coach|caregiver|dad|father|mom|mother|stepdad|stepmom|neighbor|babysitter)\b.*\btouch(?:ed|ing)?\b.*\b(?:private parts?|genitals?)\b/.test(
@@ -328,10 +363,10 @@ function hasCaregiverHarmSignal(normalizedText: string): boolean {
     /\b(rough with|left (?:him|her|them|the child)?\s*alone|scared to go home|le pega|golpea)\b/.test(
       normalizedText,
     ) ||
-    /\b(dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b.*\b(hit|hits|hitting|hurt|hurting|scares?|shakes?|shaking)\b/.test(
+    /\b(dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b[^.?!;]{0,50}\b(hit|hits|hitting|hurt|hurting|scares?|shakes?|shaking|punch(?:ed|es|ing)?)\s+(?:him|her|them|the child|my child|my son|my daughter|son|daughter|kid|toddler|baby)\b/.test(
       normalizedText,
     ) ||
-    /\b(hit|hits|hitting|hurt|hurting|scares?|shakes?|shaking)\b.*\b(dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b/.test(
+    /\b(hit|hits|hitting|hurt|hurting|scares?|shakes?|shaking|punch(?:ed|es|ing)?)\s+(?:by\s+)?(?:dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b/.test(
       normalizedText,
     ) ||
     /\b(dad|father|mom|mother|parent|caregiver|guardian|stepdad|stepmom)\b.*\bbruises?\b/.test(
@@ -379,7 +414,7 @@ function hasNeglectSignal(normalizedText: string): boolean {
 
 function hasCpsSignal(normalizedText: string): boolean {
   if (
-    /\b(?:no|not|without|denies|denied)\b[^.]{0,40}\b(?:cps|child protective services|dcfs|dcyf)\b/.test(
+    /\b(?:no|not|without|denies|denied)\b[^.]{0,40}\b(?:cps|dcf|child protective services|dcfs|dcyf|child welfare)\b/.test(
       normalizedText,
     )
   ) {
@@ -387,10 +422,10 @@ function hasCpsSignal(normalizedText: string): boolean {
   }
 
   return (
-    /\b(?:cps|child protective services|dcfs|dcyf)\b.*\b(?:involved|called|report(?:ed)?|case|investigat(?:e|ed|ing|ion)|opened|open)\b/.test(
+    /\b(?:cps|dcf|child protective services|dcfs|dcyf|child welfare)\b.*\b(?:involved|called|report(?:ed)?|case|investigat(?:e|ed|ing|ion)|opened|open)\b/.test(
       normalizedText,
     ) ||
-    /\b(?:called|reported to|open case with|case with|investigation by)\b.*\b(?:cps|child protective services|dcfs|dcyf)\b/.test(
+    /\b(?:called|reported to|open case with|case with|investigation by|opened)\b.*\b(?:cps|dcf|child protective services|dcfs|dcyf|child welfare)\b/.test(
       normalizedText,
     )
   );
@@ -398,14 +433,14 @@ function hasCpsSignal(normalizedText: string): boolean {
 
 function isNegatedSafetyOnly(normalizedText: string): boolean {
   if (
-    /\b(but|however|though|although|yet|except)\b[^.]*\b(abuse|abused|abusive|neglect|neglected|violence|unsafe|hurt|hit|harm|self[- ]?harm|suicide)\b/.test(
+    /\b(but|however|though|although|yet|except)\b[^.]*\b(abuse|abused|abusive|neglect|neglected|violence|unsafe|hurt|hit|harm|self[- ]?harm|suicide|wants? to die|wants? to hurt|kill(?:ing)? (?:himself|herself|themself|themselves|self)|not safe|knife|weapon|rape|raped|touch(?:ed|ing)?|breathe|breathing|911|seizure)\b/.test(
       normalizedText,
     )
   ) {
     return false;
   }
 
-  return /\b(no|not|denies|denied|without)\b[^.]{0,60}\b(abuse|neglect|violence|unsafe caregiving|safety concerns?)\b/.test(
+  return /\b(no|not|denies|denied|without)\b[^.]{0,60}\b(self[- ]?harm|abuse|neglect|violence|unsafe caregiving|safety concerns?)\b/.test(
     normalizedText,
   );
 }
@@ -423,7 +458,7 @@ function hasComplaintSignal(text: string): boolean {
 }
 
 function hasSchedulingSignal(text: string): boolean {
-  return /\b(cancel|cancellation|reschedule|can't make|cannot make|can'?t come|should we still come|should we come|still come to|come to (?:OT|PT|SLP|speech|therapy)|move (?:the )?(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit|parking lot|in the lobby|checking in|checked in|arrived|here for (?:the )?(?:appointment|visit)|cancelar|cancela|cancelaci[oó]n|reprogramar|reagendar|cambiar (?:la )?cita|no podemos venir|no puedo venir|no podemos asistir|no puedo asistir|llegaremos tarde|llego tarde|vomit[oó]|enferm[oa])\b/i.test(
+  return /\b(cancel|cancellation|reschedule|(?:schedule|book)\s+(?:his|her|their|the|our)?\s*(?:next\s+)?(?:OT|PT|SLP|speech|therapy|evaluation|eval)?\s*(?:appointment|visit|session|evaluation|eval)|can't make|cannot make|can'?t come|can'?t bring|cannot bring|should we still come|should we come|still come to|come to (?:OT|PT|SLP|speech|therapy)|move\b[^.?!;]{0,40}\b(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit|parking lot|in the lobby|checking in|checked in|arrived|here for (?:the )?(?:appointment|visit)|cancelar|cancela|cancelaci[oó]n|reprogramar|reagendar|cambiar (?:la )?cita|no podemos venir|no puedo venir|no podemos asistir|no puedo asistir|llegaremos tarde|llego tarde|vomit[oó]|enferm[oa])\b/i.test(
     text,
   );
 }
@@ -663,7 +698,13 @@ function hasCompleteReferralIntake(extracted: ExtractedIntake): boolean {
 }
 
 function looksLikeSpam(text: string): boolean {
-  return /\b(unsubscribe|crypto|loan offer|seo|advertising|web design|marketing list)\b/i.test(
+  return /\b(unsubscribe|crypto|loan offer|seo|advertising|web design|marketing list|marketing email|marketing offer)\b/i.test(
+    text,
+  );
+}
+
+function isIntakePacketResendRequest(text: string): boolean {
+  return /\b(resend|re-send|send|another|copy)\b[^.?!;]{0,50}\b(intake packet|intake forms?|new patient forms?|paperwork|portal link)\b|\b(intake packet|intake forms?|new patient forms?|paperwork|portal link)\b[^.?!;]{0,50}\b(resend|re-send|send|again|another|copy)\b/i.test(
     text,
   );
 }

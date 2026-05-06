@@ -164,28 +164,69 @@ function extractChildName(item: InboxItem): string | null {
     ),
     matchText(
       text,
-      /\b(?:intake\s+forms?|paperwork|forms?)\s+again\s+for\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})\b/i,
+      /\b(?:[Cc]urrent|[Ee]xisting|[Aa]ctive)\s+patient\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){1,2})\b/,
     ),
     matchText(
       text,
-      /\b[Pp]or mi hij[ao]\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/,
+      /\b([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:[ \t]+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){1,2})[ \t]+(?:is|es)[ \t]+(?:a[ \t]+)?(?:current|existing|active)[ \t]+patient\b/,
     ),
     matchText(
       text,
-      /\b[Mm]i hij[ao]\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/,
+      /\b([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:[ \t]+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){1,2}),?[ \t]+(?:current|existing|active)[ \t]+patient\b/,
     ),
     matchText(
       text,
-      /\b(?:[Cc]ita|[Tt]erapia|[Ee]valuaci[oó]n)\s+(?:de|para)\s+(?!hoy\b|ma[nñ]ana\b)([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/,
+      /\b(?:[Pp]lan of care|[Pp]rogress note|[Rr]ecords?|ROI|[Rr]elease of information|[Ss]igned referral|[Ss]igned eval|[Dd]octor follow-up|[Pp]rovider follow-up)\s+for\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){1,2})\b/,
     ),
     matchText(
       text,
-      /\b[Ee]s para\s+(?!hoy\b|ma[nñ]ana\b)([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/,
+      /\b(?:[Rr]ecords? request|ROI|[Rr]elease of information)\s+(?:re|regarding|about):?\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){1,2})\b/,
+    ),
+    matchText(
+      text,
+      /\b(?:[Ii]ntake\s+forms?|[Ii]ntake packet|[Pp]aperwork|[Pp]ortal link)\s+(?:to|for)\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,1})(?:'s)?\s+(?:family|mom|mother|dad|father|parent)\b/,
+      stripPossessive,
+    ),
+    matchText(
+      text,
+      /\b(?:send|resend|re-send)\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,1})\s+(?:another\s+)?(?:portal link|intake packet|intake forms?|paperwork)\b/,
+    ),
+    matchText(
+      text,
+      /\b(?:[Ii]ntake\s+forms?|[Ii]ntake packet|[Pp]aperwork|[Ff]orms?)\s+(?:again\s+)?for\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,2})\b/,
+    ),
+    matchText(
+      text,
+      /\b[Pp]or mi hij[ao]\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,2})/,
+    ),
+    matchText(
+      text,
+      /\b[Mm]i hij[ao]\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,2})/,
+    ),
+    matchText(
+      text,
+      /\b[Cc]ita\s+de\s+hoy\s+de\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,2})/,
+    ),
+    matchText(
+      text,
+      /\b[Pp]or la cita de\s+([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,2})/,
+    ),
+    matchText(
+      text,
+      /\b(?:[Cc]ita|[Tt]erapia|[Ee]valuaci[oó]n)\s+(?:de|para)\s+(?!hoy\b|ma[nñ]ana\b)([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,2})/,
+    ),
+    matchText(
+      text,
+      /\b[Ee]s para\s+(?!hoy\b|ma[nñ]ana\b)([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+(?:\s+[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'-]+){0,2})/,
     ),
     matchText(text, /\bmy\s+\d+[- ]year[- ]old\s+([A-Z][A-Za-z'-]+)\b/i),
     matchText(text, /\b([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,2})'s DOB\b/),
     matchText(text, /\b([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,2})\s+threw up\b/),
   ]);
+}
+
+function stripPossessive(value: string): string {
+  return value.replace(/'s$/i, "");
 }
 
 function extractContact(item: InboxItem): string | null {

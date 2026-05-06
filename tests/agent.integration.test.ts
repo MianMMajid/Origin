@@ -256,6 +256,25 @@ describe("runAgent edge workflows", () => {
     assert.match(createTaskNotes(output), /911|EMS|emergency protocol/i);
   });
 
+  it("drafts Spanish emergency P0 replies in Spanish", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "spanish_medical_emergency",
+        subject: "Emergencia",
+        body:
+          "Hola, mi hijo Noah Patel no puede respirar ahora. Mi telefono es 555-3333.",
+      }),
+    ]);
+
+    assert.equal(output.classification, "safeguarding");
+    assert.equal(output.urgency, "P0");
+    assert.match(output.draft_reply || "", /^Hola, gracias/);
+    assert.match(output.draft_reply || "", /911|servicios de emergencia/i);
+    const draftCall = getToolCall(output, "draft_message");
+    assert.equal(draftCall.args.language, "es");
+  });
+
   it("routes intake forms requests to a specific admin action", async () => {
     configureTrace({ path: tempPath("trace.jsonl") });
     const [output] = await runAgent([

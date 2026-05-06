@@ -41,6 +41,18 @@ describe("classifyItem", () => {
     });
   });
 
+  it("still escalates active self-harm after negated historical wording", () => {
+    const item = inboxItem({
+      subject: "Safety concern",
+      body: "No self-harm reported before, but he says he wants to die tonight.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "safeguarding",
+      urgency: "P0",
+    });
+  });
+
   it("escalates broader safety and safeguarding disclosures", () => {
     const bodies = [
       "Leo told his teacher he wants to hurt himself. Please call Maria at 555-0102.",
@@ -53,6 +65,15 @@ describe("classifyItem", () => {
       "The caregiver is unsafe and leaves her without meals.",
       "My daughter said her uncle touched her private parts.",
       "My child is having a seizure right now and cannot breathe.",
+      "My child is unresponsive right now.",
+      "My child's face is blue right now.",
+      "My child can not breathe.",
+      "My child is unable to breathe.",
+      "Mi hijo no puede respirar ahora.",
+      "Mi hijo se quiere matar esta noche.",
+      "The coach raped her.",
+      "Dad punched him yesterday.",
+      "DCF opened a child welfare case.",
       "Parent says the caregiver has been verbally abusive at home.",
       "Child says he is not safe at home after weekends with dad.",
       "No abuse reported, but ongoing neglect is documented by the school team.",
@@ -125,6 +146,22 @@ describe("classifyItem", () => {
         body: "Should I call 911 if he has another seizure someday?",
         expected: { classification: "clinical_question", urgency: "P2" },
       },
+      {
+        body: "When should we call 911 for seizures?",
+        expected: { classification: "clinical_question", urgency: "P2" },
+      },
+      {
+        body: "When should we call 911 if he has trouble breathing again?",
+        expected: { classification: "clinical_question", urgency: "P2" },
+      },
+      {
+        body: "Parent denies self-harm or safety concerns.",
+        expected: { classification: "other", urgency: "P2" },
+      },
+      {
+        body: "No physical abuse or neglect concerns reported.",
+        expected: { classification: "other", urgency: "P2" },
+      },
     ];
 
     for (const { body, expected } of cases) {
@@ -190,6 +227,62 @@ describe("classifyItem", () => {
     assert.deepEqual(classifyItem(item, extractIntake(item)), {
       classification: "scheduling",
       urgency: "P1",
+    });
+  });
+
+  it("does not treat benign caregiver words as safeguarding", () => {
+    const cases = [
+      "Dad hurt his back and can't bring Ava to today's 3pm appointment.",
+      "Dad hit traffic and we are running late for OT.",
+    ];
+
+    for (const body of cases) {
+      const item = inboxItem({
+        subject: "Appointment today",
+        body,
+      });
+
+      assert.deepEqual(classifyItem(item, extractIntake(item)), {
+        classification: "scheduling",
+        urgency: "P1",
+      });
+    }
+  });
+
+  it("treats current 911 uncertainty as P0 rather than routine advice", () => {
+    const item = inboxItem({
+      subject: "Emergency question",
+      body: "Should we call 911 now?",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "safeguarding",
+      urgency: "P0",
+    });
+  });
+
+  it("keeps marketing spam ahead of incidental billing/payment words", () => {
+    const item = inboxItem({
+      subject: "Marketing email",
+      body: "Marketing email about billing pages and pay online flow.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "spam",
+      urgency: "P3",
+    });
+  });
+
+  it("keeps actionable scheduling ahead of incidental unsubscribe wording", () => {
+    const item = inboxItem({
+      subject: "Reschedule and unsubscribe",
+      body:
+        "Please unsubscribe from marketing emails. Also can we reschedule next week's speech visit?",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "scheduling",
+      urgency: "P2",
     });
   });
 
@@ -317,6 +410,18 @@ describe("classifyItem", () => {
     }
   });
 
+  it("routes current-patient appointment booking as scheduling", () => {
+    const item = inboxItem({
+      subject: "Next OT visit",
+      body: "Current patient Noah Patel: can we book his next OT appointment?",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "scheduling",
+      urgency: "P2",
+    });
+  });
+
   it("does not escalate future-dated appointment changes just because they include a time", () => {
     const bodies = [
       "Can we reschedule the Friday 3pm OT appointment?",
@@ -414,6 +519,18 @@ describe("classifyItem", () => {
     const item = inboxItem({
       subject: "No one called",
       body: "I'm frustrated that no one called me back about rescheduling.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "complaint",
+      urgency: "P2",
+    });
+  });
+
+  it("routes billing complaints as complaints before billing", () => {
+    const item = inboxItem({
+      subject: "Complaint",
+      body: "Complaint: I was charged for the wrong appointment.",
     });
 
     assert.deepEqual(classifyItem(item, extractIntake(item)), {

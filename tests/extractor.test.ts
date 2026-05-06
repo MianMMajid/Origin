@@ -51,6 +51,26 @@ describe("extractIntake", () => {
     assert.equal(preferredLanguage(item), "es");
   });
 
+  it("extracts accented Spanish scheduling names and de-hoy variants", () => {
+    const accented = inboxItem({
+      subject: "Cancelar cita",
+      body:
+        "Necesito cancelar la cita para José Núñez. Mi telefono es 555-0108.",
+    });
+    const todayOf = inboxItem({
+      subject: "Cancelar cita de hoy",
+      body: "No podemos venir a la cita de hoy de Noah Patel.",
+    });
+    const forVisit = inboxItem({
+      subject: "Cita",
+      body: "Llamo por la cita de Sofía López.",
+    });
+
+    assert.equal(extractIntake(accented).child_name, "José Núñez");
+    assert.equal(extractIntake(todayOf).child_name, "Noah Patel");
+    assert.equal(extractIntake(forVisit).child_name, "Sofía López");
+  });
+
   it("handles short DOBs, compact phones, Medi-Cal, and broader concern wording", () => {
     const item = inboxItem({
       sender: "Referral fax",
@@ -118,6 +138,42 @@ describe("extractIntake", () => {
     });
 
     assert.equal(extractIntake(item).child_name, "Ava");
+  });
+
+  it("extracts current-patient and provider follow-up names without trailing verbs", () => {
+    const currentPatient = inboxItem({
+      body: "Current patient Noah Patel needs a copy of his home exercise plan.",
+    });
+    const currentPatientPrefix = inboxItem({
+      body: "Noah Patel is a current patient and needs a chart note.",
+    });
+    const providerFollowup = inboxItem({
+      body: "Plan of care for Noah Patel attached for signature.",
+    });
+    const signedReferral = inboxItem({
+      body: "Following up on the signed referral for Olivia Park.",
+    });
+
+    assert.equal(extractIntake(currentPatient).child_name, "Noah Patel");
+    assert.equal(extractIntake(currentPatientPrefix).child_name, "Noah Patel");
+    assert.equal(extractIntake(providerFollowup).child_name, "Noah Patel");
+    assert.equal(extractIntake(signedReferral).child_name, "Olivia Park");
+  });
+
+  it("extracts names from more intake packet resend phrasings", () => {
+    const toParent = inboxItem({
+      body: "Could you resend the intake packet to Ava's mom?",
+    });
+    const family = inboxItem({
+      body: "Please send the intake packet for Ava Chen's family again.",
+    });
+    const portal = inboxItem({
+      body: "Can you send Ava another portal link?",
+    });
+
+    assert.equal(extractIntake(toParent).child_name, "Ava");
+    assert.equal(extractIntake(family).child_name, "Ava Chen");
+    assert.equal(extractIntake(portal).child_name, "Ava");
   });
 
   it("replies to the email sender before body-mentioned addresses", () => {
