@@ -101,6 +101,8 @@ export function preferredLanguage(item: InboxItem): "en" | "es" {
 }
 
 export function schedulingPreference(item: InboxItem): string | undefined {
+  // Preferences are passed through to find_slots and then interpreted by the
+  // local slot selector; keep the original wording for auditability.
   return (
     firstClean([
       matchText(item.body, /\bPreferred availability:\s*([^.\n]+)/i),
@@ -142,6 +144,14 @@ function extractChildName(item: InboxItem): string | null {
     matchText(
       text,
       /\babout my daughter\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/i,
+    ),
+    matchText(
+      text,
+      /\bmy\s+(?:son|daughter|child)\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2}),?\s+DOB\b/i,
+    ),
+    matchText(
+      text,
+      /\bappointment for\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,2})\b/i,
     ),
     matchText(
       text,
@@ -206,6 +216,10 @@ function extractConcern(text: string): string | null {
     matchText(text, /\bDiagnosis\/concern:\s*([^.\n]+)/i),
     matchText(text, /\bReason for referral:\s*([^.\n]+)/i),
     matchText(text, /\bneeds help with\s+([^.\n]+)/i),
+    matchText(
+      text,
+      /\bneeds?\s+(?:speech|speech-language|occupational|physical|SLP|OT|PT)\s*(?:therapy)?\s+for\s+([^.\n]+)/i,
+    ),
     matchText(text, /\bfor\s+(toe walking and frequent tripping)\b/i),
     matchText(text, /\b(can't say[^?.!]+[?.!]?)\s*/i),
     matchText(text, /\b(speech therapy openings)\b/i),
@@ -224,6 +238,8 @@ function extractPhone(text: string): string | null {
 
 function normalizeSlashDate(date: string): string {
   const [month, day, year] = date.split("/");
+  // Pediatric DOBs in referrals may use two-digit years; prefer 20xx for young
+  // patients while still supporting older synthetic edge cases.
   const fullYear =
     year.length === 2 ? `${Number(year) <= 30 ? "20" : "19"}${year}` : year;
   return `${fullYear}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;

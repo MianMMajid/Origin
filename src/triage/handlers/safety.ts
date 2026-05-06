@@ -8,7 +8,7 @@ export async function handleSafeguarding(
 ): Promise<ActionResult> {
   const { item, extracted, dueToday } = input;
   const escalationReason =
-    "Message suggests unsafe caregiving or possible harm and needs same-hour clinical lead review.";
+    "Message suggests safeguarding risk or imminent harm and needs same-hour clinical lead review.";
 
   await lookup_policy({ topic: "safeguarding" });
   await escalate({
@@ -36,6 +36,6 @@ export async function handleSafeguarding(
     recommendedNextAction:
       "Clinical lead should review the safety concern the same hour before intake discusses evaluation availability.",
     decisionRationale:
-      "The message includes a disclosure that a caregiver is getting rough with the child, which policy treats as safeguarding and P0.",
+      "The message includes safeguarding or imminent-harm language, which policy treats as P0.",
   };
 }

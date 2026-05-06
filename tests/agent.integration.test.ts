@@ -80,7 +80,8 @@ describe("runAgent edge workflows", () => {
     assert.equal(output.tools_called.some((call) => call.name === "find_slots"), true);
     assert.equal(output.tools_called.some((call) => call.name === "hold_slot"), false);
     assert.match(output.recommended_next_action, /availability and alternatives/i);
-    assert.match(createTaskNotes(output), /No suitable slot matched/i);
+    assert.match(createTaskNotes(output), /Slot tool returned.*no returned slot matched/i);
+    assert.match(output.decision_rationale, /Slot tool returned.*no returned slot matched/i);
   });
 
   it("does not reduce multi-discipline referrals to a single slot hold", async () => {
@@ -140,6 +141,9 @@ describe("runAgent edge workflows", () => {
 function createTaskNotes(output: Awaited<ReturnType<typeof runAgent>>[number]): string {
   const createTaskCall = output.tools_called.find((call) => call.name === "create_task");
   assert.ok(createTaskCall, "expected create_task call");
-  assert.equal(typeof createTaskCall.args.notes, "string");
-  return createTaskCall.args.notes;
+  const notes = createTaskCall.args.notes;
+  if (typeof notes !== "string") {
+    assert.fail("expected create_task notes to be a string");
+  }
+  return notes;
 }

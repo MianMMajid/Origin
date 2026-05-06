@@ -169,6 +169,8 @@ async function handleReadyReferral(
     const currentSlots = slots.data.filter((slot) =>
       startsOnOrAfter(slot.start, input.dueToday),
     );
+    // A slot hold is reviewable but still operationally meaningful, so only
+    // hold when it satisfies current-date and family-preference constraints.
     const firstSlot = selectSlotForPreference(currentSlots, preferences);
     if (firstSlot) {
       const hold = await hold_slot({
@@ -178,13 +180,13 @@ async function handleReadyReferral(
       heldSlotSummary = ` Pending-review hold ${hold.data.hold_id} was created for ${firstSlot.provider_name} at ${firstSlot.start}.`;
     } else if (slots.data.length === 0) {
       slotReviewNote =
-        " No provider slots were returned for the requested discipline and language; review waitlist or alternate options.";
+        " Slot tool returned no provider availability for the requested discipline and language; review waitlist or alternate options.";
     } else if (currentSlots.length === 0) {
       slotReviewNote =
-        " Returned slots are before the operational date; review current provider availability before contacting the family.";
+        " Slot tool returned only slots before the operational date; review current provider availability before contacting the family.";
     } else {
       slotReviewNote =
-        " No suitable slot matched the stated preference; review alternate options before contacting the family.";
+        " Slot tool returned discipline/language availability, but no returned slot matched the stated family preference; review alternate options before contacting the family.";
     }
   }
 
@@ -209,15 +211,30 @@ async function handleReadyReferral(
       heldSlotSummary.length > 0
         ? "Intake should review the pending slot hold and contact the family with evaluation options."
         : slotReviewNote.length > 0
-          ? "Intake should review provider availability and alternatives before contacting the family."
+          ? "Intake should review provider availability and alternatives because slot results did not satisfy the family preference or current scheduling constraints."
         : "Intake should review the referral and contact the family about evaluation options.",
     decisionRationale:
       decision.classification === "existing_patient_request"
-        ? "Patient search found an active matching patient, and the request has enough detail for human intake review."
+        ? `Patient search found an active matching patient, and the request has enough detail for human intake review.${slotOutcomeRationale(heldSlotSummary, slotReviewNote)}`
         : insuranceIsInNetwork
-          ? "The referral has enough intake detail and verified in-network coverage, so intake can review evaluation availability."
-          : "The referral/request has enough clinical intake detail for human intake review.",
+          ? `The referral has enough intake detail and verified in-network coverage, so intake can review evaluation availability.${slotOutcomeRationale(heldSlotSummary, slotReviewNote)}`
+          : `The referral/request has enough clinical intake detail for human intake review.${slotOutcomeRationale(heldSlotSummary, slotReviewNote)}`,
   };
+}
+
+function slotOutcomeRationale(
+  heldSlotSummary: string,
+  slotReviewNote: string,
+): string {
+  if (heldSlotSummary.length > 0) {
+    return " A pending-review hold was created for a slot that passed the agent's preference filter.";
+  }
+
+  if (slotReviewNote.length > 0) {
+    return ` ${slotReviewNote.trim()}`;
+  }
+
+  return "";
 }
 
 function isSelfPayPayer(payer: string | null): boolean {

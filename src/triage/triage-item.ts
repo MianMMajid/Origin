@@ -21,6 +21,8 @@ export async function triageItem(
   return withItemContext(item.id, async () => {
     const extracted = extractIntake(item);
     const patientMatches = await findPatientMatches(extracted);
+    // Classification happens before action handling so policy/tool decisions
+    // are derived from one auditable triage result.
     const decision = refineDecisionForKnownPatient(
       classifyItem(item, extracted),
       patientMatches,
@@ -57,6 +59,7 @@ export async function triageItem(
 async function findPatientMatches(
   extracted: ReturnType<typeof extractIntake>,
 ): Promise<Patient[]> {
+  // The mock search tool is only reliable when both identity anchors exist.
   if (!isDatedDob(extracted.dob_or_age) || !extracted.child_name) {
     return [];
   }

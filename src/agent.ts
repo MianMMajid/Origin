@@ -16,6 +16,8 @@ export async function runAgent(inbox: InboxItem[]): Promise<ItemOutput[]> {
   };
   const outputs: ItemOutput[] = [];
 
+  // Keep item processing sequential so trace entries are deterministic and
+  // easier for reviewers to audit against the final sorted action plan.
   for (const item of inbox) {
     outputs.push(await triageItem(item, context));
   }
@@ -27,6 +29,8 @@ function sortForHumanReview(
   outputs: ItemOutput[],
   inbox: InboxItem[],
 ): ItemOutput[] {
+  // Preserve received order within the same urgency so routine items remain
+  // predictable while P0/P1 work is lifted to the top.
   const inputOrder = new Map(
     inbox.map((item, index) => [
       item.id,

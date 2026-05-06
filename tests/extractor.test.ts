@@ -67,6 +67,21 @@ describe("extractIntake", () => {
     assert.equal(extractIntake(item).payer, "self-pay");
   });
 
+  it("extracts names from scheduling and direct therapy-need variants", () => {
+    const scheduling = inboxItem({
+      body:
+        "Can we reschedule Friday 3pm OT appointment for Noah Patel? DOB is 2017-11-02. Please call 555-0108.",
+    });
+    const therapyNeed = inboxItem({
+      body:
+        "My daughter Nora Mills, DOB is 2018-02-03, needs speech therapy for articulation. I am Alex Mills, 555-2323.",
+    });
+
+    assert.equal(extractIntake(scheduling).child_name, "Noah Patel");
+    assert.equal(extractIntake(therapyNeed).child_name, "Nora Mills");
+    assert.equal(extractIntake(therapyNeed).diagnosis_or_concern, "articulation");
+  });
+
   it("replies to the email sender before body-mentioned addresses", () => {
     const item = inboxItem({
       channel: "email",
