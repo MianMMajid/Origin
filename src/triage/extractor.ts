@@ -34,6 +34,11 @@ export function extractIntake(item: InboxItem): ExtractedIntake {
         /\b(?:he|she|they)\s+is\s+(\d+)\b/i,
         (age) => `${age} years`,
       ),
+      matchText(
+        text,
+        /\bmy\s+(?:son|daughter|child)\s+[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2}\s+is\s+(\d+)\b/i,
+        (age) => `${age} years`,
+      ),
       matchText(text, /\btiene\s+(\d+)\s+a[nñ]os\b/i, (age) => `${age} years`),
     ]),
     parent_contact: extractContact(item),
@@ -147,11 +152,19 @@ function extractChildName(item: InboxItem): string | null {
     ),
     matchText(
       text,
+      /\bmy\s+(?:son|daughter|child)\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})\s+is\s+\d+\b/i,
+    ),
+    matchText(
+      text,
       /\bmy\s+(?:son|daughter|child)\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2}),?\s+DOB\b/i,
     ),
     matchText(
       text,
       /\bappointment for\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,2})\b/i,
+    ),
+    matchText(
+      text,
+      /\b(?:intake\s+forms?|paperwork|forms?)\s+again\s+for\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})\b/i,
     ),
     matchText(
       text,

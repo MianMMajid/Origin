@@ -53,7 +53,7 @@ Slot holds are only pending review. The agent does not schedule appointments or 
 
 Production eval should include schema/audit validation, golden synthetic inboxes, hidden variants, safety-focused red-team cases, tool-call relevance review, and human reviewer agreement on classification, urgency, missing fields, and next action.
 
-Current automated coverage includes representative edge cases for safeguarding precedence, broader self-harm/unsafe-home/sexual-boundary/abuse/neglect and imminent-harm wording, negated safety language, non-safety pain or sports-injury wording, same-day versus future-dated scheduling, alternate intake labels, accented Spanish cues, self-pay routing, direct therapy-need intake, multi-discipline referrals, no suitable slot matches, and malformed validation output. `npm run typecheck` includes both `src/` and `tests/`.
+Current automated coverage includes representative edge cases for safeguarding precedence, broader self-harm/unsafe-home/sexual-boundary/abuse/neglect and imminent-harm wording, negated safety language, non-safety pain or sports-injury wording, same-day versus future-dated scheduling, alternate intake labels, accented Spanish cues, self-pay routing, direct therapy-need intake, intake-forms resend requests, multi-discipline referrals, no suitable slot matches, and malformed validation output. `npm run typecheck` includes both `src/` and `tests/`.
 
 ## What I chose not to build, and why
 

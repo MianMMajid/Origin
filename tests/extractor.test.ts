@@ -76,10 +76,25 @@ describe("extractIntake", () => {
       body:
         "My daughter Nora Mills, DOB is 2018-02-03, needs speech therapy for articulation. I am Alex Mills, 555-2323.",
     });
+    const namedAge = inboxItem({
+      body:
+        "My daughter Mia is 4 and needs speech therapy for articulation. Please call me at 555-2222.",
+    });
 
     assert.equal(extractIntake(scheduling).child_name, "Noah Patel");
     assert.equal(extractIntake(therapyNeed).child_name, "Nora Mills");
     assert.equal(extractIntake(therapyNeed).diagnosis_or_concern, "articulation");
+    assert.equal(extractIntake(namedAge).child_name, "Mia");
+    assert.equal(extractIntake(namedAge).dob_or_age, "4 years");
+    assert.equal(extractIntake(namedAge).diagnosis_or_concern, "articulation");
+  });
+
+  it("extracts child names from intake forms requests", () => {
+    const item = inboxItem({
+      body: "Could you send intake forms again for Ava?",
+    });
+
+    assert.equal(extractIntake(item).child_name, "Ava");
   });
 
   it("replies to the email sender before body-mentioned addresses", () => {

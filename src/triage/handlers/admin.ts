@@ -1,6 +1,7 @@
 import { create_task, lookup_policy, verify_insurance } from "../../tools.js";
 import type { ActionInput, ActionResult } from "../model.js";
 import { displayChild } from "../extractor.js";
+import { searchableText } from "../text.js";
 import { draftReplyFor } from "./common.js";
 
 export function handleSpam(): ActionResult {
@@ -132,6 +133,32 @@ export async function handleOther(input: ActionInput): Promise<ActionResult> {
     };
   }
 
+  if (isIntakeFormsRequest(input)) {
+    const { item, extracted, dueRoutine } = input;
+    const task = await create_task({
+      assignee: "intake",
+      due: dueRoutine,
+      title: `Resend intake forms for ${displayChild(extracted)}`,
+      notes:
+        "Family is asking for intake forms or paperwork to be sent again. Confirm the correct recipient/contact and resend the packet or portal link.",
+    });
+    const draftReply = await draftReplyFor(
+      item,
+      extracted,
+      "Hi, thank you for reaching out. Our intake team will resend the intake forms or portal link and follow up if anything else is needed.",
+    );
+
+    return {
+      draftReply,
+      taskIds: [task.data.task_id],
+      escalation: null,
+      recommendedNextAction:
+        "Intake should confirm the contact on file and resend the intake forms or portal link.",
+      decisionRationale:
+        "The item is an administrative intake-forms request without safety, scheduling, billing, or clinical-advice signals.",
+    };
+  }
+
   const task = await create_task({
     assignee: "front_desk",
     due: input.dueRoutine,
@@ -148,4 +175,10 @@ export async function handleOther(input: ActionInput): Promise<ActionResult> {
     decisionRationale:
       "The item did not match a higher-confidence triage pattern.",
   };
+}
+
+function isIntakeFormsRequest(input: ActionInput): boolean {
+  return /\b(intake forms?|new patient forms?|paperwork|packet|portal link)\b.*\b(send|sent|resend|re-send|again|another|copy)\b|\b(send|resend|re-send)\b.*\b(intake forms?|new patient forms?|paperwork|packet|portal link)\b/i.test(
+    searchableText(input.item),
+  );
 }

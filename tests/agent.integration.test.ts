@@ -136,6 +136,24 @@ describe("runAgent edge workflows", () => {
     assert.equal(output.tools_called.some((call) => call.name === "escalate"), false);
     assert.match(output.recommended_next_action, /routine scheduling request/i);
   });
+
+  it("routes intake forms requests to a specific admin action", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "forms_request",
+        subject: "Forms",
+        body: "Could you send intake forms again for Ava?",
+      }),
+    ]);
+
+    assert.equal(output.classification, "other");
+    assert.equal(output.urgency, "P2");
+    assert.equal(output.extracted_intake.child_name, "Ava");
+    assert.match(output.recommended_next_action, /resend the intake forms/i);
+    assert.match(createTaskNotes(output), /intake forms or paperwork/i);
+    assert.match(output.draft_reply || "", /resend the intake forms/i);
+  });
 });
 
 function createTaskNotes(output: Awaited<ReturnType<typeof runAgent>>[number]): string {
