@@ -45,10 +45,10 @@ export function extractIntake(item: InboxItem): ExtractedIntake {
     discipline: extractDisciplines(text),
     diagnosis_or_concern: extractConcern(text),
     payer: firstClean([
-      matchText(text, /\bInsurance:\s*([^.\n]+)/i),
-      matchText(text, /\b(?:Payer|Plan):\s*([^.\n]+)/i),
-      matchText(text, /\bInsurance\s+is\s+([^,.\n]+)/i),
-      matchText(text, /\bTenemos\s+([^,.\n]+)\b/i),
+      matchText(text, /\bInsurance:\s*([^;.\n]+)/i),
+      matchText(text, /\b(?:Payer|Plan):\s*([^;.\n]+)/i),
+      matchText(text, /\bInsurance\s+is\s+([^;,.\n]+)/i),
+      matchText(text, /\bTenemos\s+([^;,.\n]+)\b/i),
       matchText(text, /\b(Medi-Cal|Medicaid)\b/i, () => "Medicaid"),
       matchText(text, /\b(self[- ]?pay|private pay|cash pay|no insurance|uninsured)\b/i),
     ]),
@@ -135,9 +135,9 @@ function extractChildName(item: InboxItem): string | null {
   const text = searchableText(item);
 
   return firstClean([
-    matchText(text, /\bChild:\s*([^.\n]+)/i),
-    matchText(text, /\b(?:Patient|Client|Child name):\s*([^.\n]+)/i),
-    matchText(item.subject, /\bReferral:\s*([^-]+?)(?:\s+-|$)/i),
+    matchText(text, /\bChild:\s*([^;.\n]+)/i),
+    matchText(text, /\b(?:Patient|Client|Child name):\s*([^;.\n]+)/i),
+    matchText(item.subject, /\bReferral:\s*([^;.\n-]+?)(?:\s+-|[;.\n]|$)/i),
     matchText(
       item.subject,
       /\bReferral for\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/i,
@@ -224,14 +224,14 @@ function extractDisciplines(text: string): Discipline[] | null {
 
 function extractConcern(text: string): string | null {
   return firstClean([
-    matchText(text, /\bConcern:\s*([^.\n]+)/i),
-    matchText(text, /\bConcern\s+is\s+([^.\n]+)/i),
-    matchText(text, /\bDiagnosis\/concern:\s*([^.\n]+)/i),
-    matchText(text, /\bReason for referral:\s*([^.\n]+)/i),
-    matchText(text, /\bneeds help with\s+([^.\n]+)/i),
+    matchText(text, /\bConcern:\s*([^;.\n]+)/i),
+    matchText(text, /\bConcern\s+is\s+([^;.\n]+)/i),
+    matchText(text, /\bDiagnosis\/concern:\s*([^;.\n]+)/i),
+    matchText(text, /\bReason for referral:\s*([^;.\n]+)/i),
+    matchText(text, /\bneeds help with\s+([^;.\n]+)/i),
     matchText(
       text,
-      /\bneeds?\s+(?:speech|speech-language|occupational|physical|SLP|OT|PT)\s*(?:therapy)?\s+for\s+([^.\n]+)/i,
+      /\bneeds?\s+(?:speech|speech-language|occupational|physical|SLP|OT|PT)\s*(?:therapy)?\s+for\s+([^;.\n]+)/i,
     ),
     matchText(text, /\bfor\s+(toe walking and frequent tripping)\b/i),
     matchText(text, /\b(can't say[^?.!]+[?.!]?)\s*/i),

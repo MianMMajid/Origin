@@ -6,6 +6,8 @@ import type {
 import type { TriageDecision } from "./model.js";
 import { searchableText } from "./text.js";
 
+const INVALID_APPOINTMENT_DATE = "__invalid_appointment_date__";
+
 export function classifyItem(
   item: InboxItem,
   extracted: ExtractedIntake,
@@ -17,20 +19,30 @@ export function classifyItem(
     return { classification: "safeguarding", urgency: "P0" };
   }
 
-  if (looksLikeSpam(text)) {
-    return { classification: "spam", urgency: "P3" };
-  }
+  const hasScheduling = hasSchedulingSignal(text);
 
   if (
-    hasSchedulingSignal(text) &&
+    hasScheduling &&
     hasSameDayAppointmentSignal(text, item.received_at)
   ) {
     return { classification: "scheduling", urgency: "P1" };
   }
 
+  if (hasBillingSignal(text)) {
+    return { classification: "billing_question", urgency: "P2" };
+  }
+
+  if (hasComplaintSignal(text)) {
+    return { classification: "complaint", urgency: "P2" };
+  }
+
   // Routine scheduling should not page/escalate unless it is same-day.
-  if (hasSchedulingSignal(text)) {
+  if (hasScheduling) {
     return { classification: "scheduling", urgency: "P2" };
+  }
+
+  if (looksLikeSpam(text)) {
+    return { classification: "spam", urgency: "P3" };
   }
 
   if (
@@ -39,22 +51,6 @@ export function classifyItem(
     )
   ) {
     return { classification: "clinical_question", urgency: "P2" };
-  }
-
-  if (
-    /\b(billing|bill|invoice|statement|charged|charge|copay|co-pay|claim|superbill|balance|refund|coverage denied|denied claim|authorization denied|auth denied)\b/i.test(
-      text,
-    )
-  ) {
-    return { classification: "billing_question", urgency: "P2" };
-  }
-
-  if (
-    /\b(complaint|unhappy|upset|frustrated|angry|rude|bad experience|never heard back|no one called|wrong provider|wrong appointment)\b/i.test(
-      text,
-    )
-  ) {
-    return { classification: "complaint", urgency: "P2" };
   }
 
   if (
@@ -189,6 +185,9 @@ function hasSelfHarmSignal(normalizedText: string): boolean {
     /\b(suicidal|suicide|self[- ]?harm|self[- ]?injur(?:y|ies|ing)|wants? to die|wants? to hurt (?:himself|herself|themself|themselves|self)|(?:hurt|harm|kill)(?:ing)? (?:himself|herself|themself|themselves|self))\b/.test(
       normalizedText,
     ) ||
+    /\b(?:can'?t|cannot|can not|unable to)\s+keep\s+(?:him|her|them|my child|my son|my daughter|the child)\s+safe(?:\s+(?:tonight|today|right now|now|this evening|at home))?\b/.test(
+      normalizedText,
+    ) ||
     /\b(cutting|cut|cuts|burning|burns?) (?:himself|herself|themself|themselves|self)\b/.test(
       normalizedText,
     ) ||
@@ -199,8 +198,19 @@ function hasSelfHarmSignal(normalizedText: string): boolean {
 }
 
 function hasThreatToOthersSignal(normalizedText: string): boolean {
-  return /\b(?:going to|wants? to|threat(?:ened|ens)? to|said (?:he|she|they) (?:is|are|was|were)?\s*(?:going to|will))\s+(?:hurt|harm|kill|attack)\s+(?:his|her|their|a|the)?\s*(?:sister|brother|sibling|classmate|teacher|parent|mom|mother|dad|father|caregiver|friend|other child|someone)\b/.test(
-    normalizedText,
+  return (
+    /\b(?:going to|wants? to|threat(?:ened|ens)? to|said (?:he|she|they) (?:is|are|was|were)?\s*(?:going to|will))\s+(?:hurt|harm|kill|attack)\s+(?:his|her|their|a|the)?\s*(?:sister|brother|sibling|classmate|teacher|parent|mom|mother|dad|father|caregiver|friend|other child|someone)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(?:threat(?:ened|ens|ening)?|going to|wants? to|said (?:he|she|they) (?:is|are|was|were)?\s*(?:going to|will))\b.*\b(?:knife|gun|weapon|firearm|blade)\b.*\b(?:sister|brother|sibling|classmate|teacher|parent|mom|mother|dad|father|caregiver|friend|other child|someone)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(?:threat(?:ened|ens|ening)?|going to|wants? to|said (?:he|she|they) (?:is|are|was|were)?\s*(?:going to|will))\b.*\b(?:sister|brother|sibling|classmate|teacher|parent|mom|mother|dad|father|caregiver|friend|other child|someone)\b.*\b(?:knife|gun|weapon|firearm|blade)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(?:sister|brother|sibling|classmate|teacher|parent|mom|mother|dad|father|caregiver|friend|other child|someone)\b.*\b(?:knife|gun|weapon|firearm|blade)\b.*\b(?:threat(?:ened|ens|ening)?|hurt|harm|kill|attack)\b/.test(
+      normalizedText,
+    )
   );
 }
 
@@ -211,31 +221,94 @@ function hasImminentDangerSignal(normalizedText: string): boolean {
     ) ||
     /\b(traffic|street|road|parking lot|highway)\b.*\b(run|running|ran|bolt|bolting|elope|eloping)\b/.test(
       normalizedText,
+    ) ||
+    /\b(?:jump|jumping|climb|climbing|trying to jump|tried to jump|attempted to jump)\b.*\b(?:out of|from|through)?\s*(?:the )?(?:window|balcony|roof)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(?:window|balcony|roof)\b.*\b(?:jump|jumping|climb|climbing|fall|falling)\b/.test(
+      normalizedText,
     )
   );
 }
 
 function hasMedicalEmergencySignal(normalizedText: string): boolean {
   const severeEmergency =
-    /\b(cannot breathe|can'?t breathe|not breathing|trouble breathing|difficulty breathing|choking|unconscious|blue lips|call 911|called 911|emergency|overdose|swallowed (?:a )?(?:bottle of )?(?:pills|medication|medicine)|took (?:a )?(?:bottle of )?(?:pills|medication|medicine))\b/.test(
+    /\b(cannot breathe|can'?t breathe|not breathing|trouble breathing|difficulty breathing|choking|unconscious|blue lips|overdose|swallowed (?:a )?(?:bottle of )?(?:pills|medication|medicine)|took (?:a )?(?:bottle of )?(?:pills|medication|medicine))\b/.test(
       normalizedText,
-    );
-  const acuteSeizure =
-    /\bseizure\b/.test(normalizedText) &&
-    /\b(having|currently|right now|just had|today|now)\b/.test(normalizedText);
+    ) ||
+    hasCurrent911Signal(normalizedText) ||
+    hasCurrentEmergencySignal(normalizedText);
 
-  return severeEmergency || acuteSeizure;
+  return severeEmergency || hasCurrentSeizureSignal(normalizedText);
 }
 
-function hasSexualBoundarySignal(normalizedText: string): boolean {
-  return /\b(private parts?|inappropriate touching|touched (?:his|her|their) private|touch(?:ed|ing)? (?:him|her|them|my child|my son|my daughter).*(?:private parts?|genitals?)|molest(?:ed|ation)?|sexual assault)\b/.test(
+function hasCurrent911Signal(normalizedText: string): boolean {
+  if (!/\b(?:call(?:ed|ing)?|dial(?:ed|ing)?)\s+911\b/.test(normalizedText)) {
+    return false;
+  }
+
+  return !hasHistoricalEmergencyContext(normalizedText);
+}
+
+function hasCurrentEmergencySignal(normalizedText: string): boolean {
+  if (
+    !/\b(?:medical|safety|life[- ]?threatening|right now|current|active)\s+emergency\b/.test(
+      normalizedText,
+    )
+  ) {
+    return false;
+  }
+
+  return !(
+    /\b(?:not|no|non)\b[^.]{0,30}\bemergency\b/.test(normalizedText) ||
+    /\bemergency contact\b/.test(normalizedText) ||
+    hasHistoricalEmergencyContext(normalizedText)
+  );
+}
+
+function hasCurrentSeizureSignal(normalizedText: string): boolean {
+  if (!/\bseizures?\b/.test(normalizedText)) {
+    return false;
+  }
+
+  if (
+    /\b(?:no|not|isn'?t|is not|wasn'?t|was not|without|denies|denied)\b[^.]{0,40}\bseizures?\b/.test(
+      normalizedText,
+    ) ||
+    /\bseizures?\b[^.]{0,40}\b(?:stopped|resolved|last month|last week|history of|historical|previous)\b/.test(
+      normalizedText,
+    )
+  ) {
+    return false;
+  }
+
+  return /\b(having|currently|right now|just had|today|now|active|ongoing)\b/.test(
     normalizedText,
   );
 }
 
-function hasUnsafeHomeSignal(normalizedText: string): boolean {
-  return /\b(not safe at home|unsafe at home|scared to go home|afraid to go home|doesn'?t feel safe|does not feel safe|home is unsafe|unsafe caregiving|unsafe caregiver|caregiver is unsafe|unsafe care)\b/.test(
+function hasHistoricalEmergencyContext(normalizedText: string): boolean {
+  return /\b(last month|last year|last week|months? ago|years? ago|previously|historical|history of)\b/.test(
     normalizedText,
+  );
+}
+
+function hasSexualBoundarySignal(normalizedText: string): boolean {
+  return (
+    /\b(inappropriate touching|touched (?:his|her|their) private|touch(?:ed|ing)? (?:him|her|them|my child|my son|my daughter).*(?:private parts?|genitals?)|molest(?:ed|ation)?|sexual assault)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(?:uncle|aunt|adult|teacher|coach|caregiver|dad|father|mom|mother|stepdad|stepmom|neighbor|babysitter)\b.*\btouch(?:ed|ing)?\b.*\b(?:private parts?|genitals?)\b/.test(
+      normalizedText,
+    )
+  );
+}
+
+function hasUnsafeHomeSignal(normalizedText: string): boolean {
+  return (
+    /\b(not safe at home|unsafe at home|scared to go home|afraid to go home|doesn'?t feel safe|does not feel safe|home is unsafe|unsafe caregiving|unsafe caregiver|caregiver is unsafe|unsafe care)\b/.test(
+      normalizedText,
+    ) || hasCpsSignal(normalizedText)
   );
 }
 
@@ -275,7 +348,7 @@ function hasAbuseSignal(normalizedText: string): boolean {
 
 function hasNeglectSignal(normalizedText: string): boolean {
   return (
-    /\b(ongoing neglect|being neglected|not being fed|not fed|no food|left (?:him|her|them|the child)?\s*alone|unsupervised|caregiver unavailable|no supervision)\b/.test(
+    /\b(ongoing neglect|being neglected|not being fed|not fed|no food (?:at home|in (?:the )?(?:home|house)|available|for (?:him|her|them|the child))|left (?:him|her|them|the child)?\s*alone|unsupervised|caregiver unavailable|no supervision)\b/.test(
       normalizedText,
     ) ||
     /\b(leaves? (?:him|her|them|the child|the toddler)\s+without meals?|without meals?|not getting meals?|missed meals?)\b/.test(
@@ -288,6 +361,25 @@ function hasNeglectSignal(normalizedText: string): boolean {
       normalizedText,
     ) ||
     /\b(leaves? (?:him|her|them|the child|the toddler)?\s*alone|alone overnight|unsupervised|no supervision)\b.*\b(mom|mother|dad|father|parent|caregiver|guardian)\b.*\b(using drugs|uses drugs|drug use|drunk|intoxicated|substance use|high)\b/.test(
+      normalizedText,
+    )
+  );
+}
+
+function hasCpsSignal(normalizedText: string): boolean {
+  if (
+    /\b(?:no|not|without|denies|denied)\b[^.]{0,40}\b(?:cps|child protective services|dcfs|dcyf)\b/.test(
+      normalizedText,
+    )
+  ) {
+    return false;
+  }
+
+  return (
+    /\b(?:cps|child protective services|dcfs|dcyf)\b.*\b(?:involved|called|report(?:ed)?|case|investigat(?:e|ed|ing|ion)|opened|open)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(?:called|reported to|open case with|case with|investigation by)\b.*\b(?:cps|child protective services|dcfs|dcyf)\b/.test(
       normalizedText,
     )
   );
@@ -307,14 +399,26 @@ function isNegatedSafetyOnly(normalizedText: string): boolean {
   );
 }
 
+function hasBillingSignal(text: string): boolean {
+  return /\b(billing|bill|invoice|statement|charged|charge|copay|co-pay|claim|superbill|balance|refund|payment|pay online|pay the|paid|coverage denied|denied claim|authorization denied|auth denied)\b/i.test(
+    text,
+  );
+}
+
+function hasComplaintSignal(text: string): boolean {
+  return /\b(complaint|unhappy|upset|frustrated|angry|rude|bad experience|never heard back|no one called|wrong provider|wrong appointment)\b/i.test(
+    text,
+  );
+}
+
 function hasSchedulingSignal(text: string): boolean {
-  return /\b(cancel|cancellation|reschedule|can't make|cannot make|can'?t come|move (?:the )?(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit|cancelar|cancela|cancelaci[oó]n|reprogramar|reagendar|cambiar (?:la )?cita|no podemos venir|no puedo venir|no podemos asistir|no puedo asistir|llegaremos tarde|llego tarde|vomit[oó]|enferm[oa])\b/i.test(
+  return /\b(cancel|cancellation|reschedule|can't make|cannot make|can'?t come|move (?:the )?(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit|parking lot|in the lobby|checking in|checked in|arrived|here for (?:the )?(?:appointment|visit)|cancelar|cancela|cancelaci[oó]n|reprogramar|reagendar|cambiar (?:la )?cita|no podemos venir|no puedo venir|no podemos asistir|no puedo asistir|llegaremos tarde|llego tarde|vomit[oó]|enferm[oa])\b/i.test(
     text,
   );
 }
 
 function hasSameDaySignal(text: string): boolean {
-  return /\b(today'?s?|same[- ]day|this afternoon|this morning|in \d+ minutes?|in an hour|within the hour|hoy|esta tarde|esta ma[nñ]ana|en \d+ minutos?|en una hora)\b/i.test(
+  return /\b(today(?:['’]s)?|same[- ]day|this afternoon|this morning|this evening|right now|running late|late arrival|parking lot|in the lobby|checking in|checked in|arrived|in \d+ minutes?|in an hour|within the hour|hoy|esta tarde|esta ma[nñ]ana|en \d+ minutos?|en una hora)\b/i.test(
     text,
   );
 }
@@ -323,16 +427,24 @@ function hasSameDayAppointmentSignal(
   text: string,
   receivedAt: string,
 ): boolean {
+  if (hasNegatedSameDaySchedulingSignal(text) && hasFutureDateSignal(text)) {
+    return false;
+  }
+
+  if (hasFutureDateSignal(text) && !hasExplicitSameDayAppointmentCue(text)) {
+    return false;
+  }
+
   if (hasSameDaySignal(text)) {
     return true;
   }
 
-  if (hasFutureDateSignal(text)) {
+  const receivedDate = receivedAt.slice(0, 10);
+  const explicitDate = explicitAppointmentDate(text, receivedDate);
+  if (explicitDate === INVALID_APPOINTMENT_DATE) {
     return false;
   }
 
-  const receivedDate = receivedAt.slice(0, 10);
-  const explicitDate = explicitAppointmentDate(text, receivedDate);
   if (explicitDate) {
     return explicitDate === receivedDate;
   }
@@ -340,12 +452,24 @@ function hasSameDayAppointmentSignal(
   return hasClockTimeSignal(text);
 }
 
+function hasNegatedSameDaySchedulingSignal(text: string): boolean {
+  return /\b(?:do not|don't|dont|does not|doesn't|no)\s+(?:need to\s+)?(?:cancel|reschedule|move|change)\b[^.?!;]{0,60}\b(?:today(?:['’]s)?|hoy)\b/i.test(
+    text,
+  );
+}
+
+function hasExplicitSameDayAppointmentCue(text: string): boolean {
+  return /\b(today(?:['’]s)|same[- ]day|this afternoon|this morning|this evening|right now|running late|late arrival|parking lot|in the lobby|checking in|checked in|arrived|hoy\s+a\s+las|cita\s+de\s+hoy|esta tarde|esta ma[nñ]ana|en \d+ minutos?|en una hora)\b/i.test(
+    text,
+  );
+}
+
 function hasClockTimeSignal(text: string): boolean {
   return /\b(?:\d{1,2})(?::\d{2})?\s*(?:am|pm)\b/i.test(text);
 }
 
 function hasFutureDateSignal(text: string): boolean {
-  return /\b(tomorrow|next week|next month|next monday|next tuesday|next wednesday|next thursday|next friday|next saturday|next sunday|ma[nñ]ana|la pr[oó]xima semana|el pr[oó]ximo mes|pr[oó]ximo lunes|pr[oó]ximo martes|pr[oó]ximo mi[eé]rcoles|pr[oó]ximo jueves|pr[oó]ximo viernes|pr[oó]ximo s[aá]bado|pr[oó]ximo domingo)\b/i.test(
+  return /\b(tomorrow|next week|in two weeks|in \d+ weeks|next month|next monday|next tuesday|next wednesday|next thursday|next friday|next saturday|next sunday|ma[nñ]ana|la pr[oó]xima semana|en dos semanas|en \d+ semanas|el pr[oó]ximo mes|pr[oó]ximo lunes|pr[oó]ximo martes|pr[oó]ximo mi[eé]rcoles|pr[oó]ximo jueves|pr[oó]ximo viernes|pr[oó]ximo s[aá]bado|pr[oó]ximo domingo)\b/i.test(
     text,
   );
 }
@@ -358,28 +482,43 @@ function explicitAppointmentDate(
   const year = Number(receivedDate.slice(0, 4));
   const isoMatch = appointmentText.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
   if (isoMatch) {
-    return formatDate(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]));
+    return (
+      formatDate(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3])) ||
+      INVALID_APPOINTMENT_DATE
+    );
   }
 
   const slashMatch = appointmentText.match(
     /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/,
   );
   if (slashMatch) {
-    return formatDate(
+    const slashDate = formatDate(
       normalizeYear(slashMatch[3], year),
       Number(slashMatch[1]),
       Number(slashMatch[2]),
     );
+    if (isLikelyPediatricDob(slashDate, receivedDate)) {
+      return explicitAppointmentDate(
+        `${appointmentText.slice(0, slashMatch.index)} ${appointmentText.slice(
+          (slashMatch.index || 0) + slashMatch[0].length,
+        )}`,
+        receivedDate,
+      );
+    }
+
+    return slashDate || INVALID_APPOINTMENT_DATE;
   }
 
   const monthMatch = appointmentText.match(
     /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:,?\s+(20\d{2}))?\b/i,
   );
   if (monthMatch) {
-    return formatDate(
-      monthMatch[3] ? Number(monthMatch[3]) : year,
-      monthNumber(monthMatch[1]),
-      Number(monthMatch[2]),
+    return (
+      formatDate(
+        monthMatch[3] ? Number(monthMatch[3]) : year,
+        monthNumber(monthMatch[1]),
+        Number(monthMatch[2]),
+      ) || INVALID_APPOINTMENT_DATE
     );
   }
 
@@ -387,7 +526,7 @@ function explicitAppointmentDate(
   if (weekday !== null) {
     return weekday === weekdayForDate(receivedDate)
       ? receivedDate
-      : "0000-00-00";
+      : INVALID_APPOINTMENT_DATE;
   }
 
   return null;
@@ -398,6 +537,17 @@ function stripDobDates(text: string): string {
     /\b(?:dob|date of birth|born)\s*(?:is|:)?\s*(?:20\d{2}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+\d{1,2}(?:,?\s+\d{2,4})?)/gi,
     "",
   );
+}
+
+function isLikelyPediatricDob(
+  candidateDate: string | null,
+  receivedDate: string,
+): boolean {
+  if (!candidateDate) {
+    return false;
+  }
+
+  return Number(candidateDate.slice(0, 4)) <= Number(receivedDate.slice(0, 4)) - 2;
 }
 
 function normalizeYear(value: string | undefined, fallback: number): number {
@@ -462,6 +612,15 @@ function formatDate(year: number, month: number, day: number): string | null {
     month > 12 ||
     day < 1 ||
     day > 31
+  ) {
+    return null;
+  }
+
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
   ) {
     return null;
   }

@@ -67,6 +67,18 @@ describe("extractIntake", () => {
     assert.equal(extractIntake(item).payer, "self-pay");
   });
 
+  it("does not overcapture semicolon-delimited referral fields", () => {
+    const item = inboxItem({
+      body:
+        "Child: Liam Park; DOB: 2018-09-04; Parent: Dana Park, 555-3333; Discipline requested: SLP; Concern: articulation delay; Insurance: Aetna PPO; Member ID: AET-333.",
+    });
+    const extracted = extractIntake(item);
+
+    assert.equal(extracted.child_name, "Liam Park");
+    assert.equal(extracted.diagnosis_or_concern, "articulation delay");
+    assert.equal(extracted.payer, "Aetna PPO");
+  });
+
   it("extracts names from scheduling and direct therapy-need variants", () => {
     const scheduling = inboxItem({
       body:

@@ -71,6 +71,68 @@ describe("classifyItem", () => {
     }
   });
 
+  it("escalates reported P0 safety edge cases", () => {
+    const bodies = [
+      "I cannot keep him safe tonight. Please have the clinical lead call me.",
+      "He threatened his brother with a knife and I need help now.",
+      "She is trying to jump out of the window tonight.",
+      "CPS is involved and opened a case after the visit.",
+    ];
+
+    for (const body of bodies) {
+      const item = inboxItem({
+        subject: "Safety concern",
+        body,
+      });
+
+      assert.deepEqual(classifyItem(item, extractIntake(item)), {
+        classification: "safeguarding",
+        urgency: "P0",
+      });
+    }
+  });
+
+  it("does not escalate negated or administrative emergency and safety wording", () => {
+    const cases = [
+      {
+        body:
+          "I have an invoice question; this is not an emergency. Can I pay online?",
+        expected: { classification: "billing_question", urgency: "P2" },
+      },
+      {
+        body:
+          "We called 911 last month, but there is no emergency now. Should I wait until the evaluation?",
+        expected: { classification: "clinical_question", urgency: "P2" },
+      },
+      {
+        body: "No seizure right now. I just need advice about therapy.",
+        expected: { classification: "clinical_question", urgency: "P2" },
+      },
+      {
+        body: "Please update the emergency contact for Noah Patel.",
+        expected: { classification: "other", urgency: "P2" },
+      },
+      {
+        body: "For Ava's chart, no food allergies and no safety concerns.",
+        expected: { classification: "other", urgency: "P2" },
+      },
+      {
+        body:
+          "Should I use different wording for private parts hygiene? No abuse concerns.",
+        expected: { classification: "clinical_question", urgency: "P2" },
+      },
+    ];
+
+    for (const { body, expected } of cases) {
+      const item = inboxItem({
+        subject: "Question",
+        body,
+      });
+
+      assert.deepEqual(classifyItem(item, extractIntake(item)), expected);
+    }
+  });
+
   it("does not escalate ordinary pain wording without unsafe caregiving context", () => {
     const item = inboxItem({
       subject: "Question after PT",
@@ -101,6 +163,32 @@ describe("classifyItem", () => {
     });
   });
 
+  it("keeps same-day reschedules ahead of spam-like unsubscribe wording", () => {
+    const item = inboxItem({
+      subject: "Reschedule and unsubscribe",
+      body:
+        "Please reschedule today's 3pm appointment for Noah. Also unsubscribe me from marketing.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "scheduling",
+      urgency: "P1",
+    });
+  });
+
+  it("keeps same-day scheduling ahead of billing wording", () => {
+    const item = inboxItem({
+      subject: "Cancel today and fee question",
+      body:
+        "I need to cancel today's 3pm appointment and want to know if I will be charged.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "scheduling",
+      urgency: "P1",
+    });
+  });
+
   it("keeps non-same-day reschedules at routine urgency", () => {
     const item = inboxItem({
       subject: "Need to reschedule tomorrow",
@@ -111,6 +199,92 @@ describe("classifyItem", () => {
       classification: "scheduling",
       urgency: "P2",
     });
+  });
+
+  it("keeps negated same-day language routine when the requested move is future-dated", () => {
+    const bodies = [
+      "We do not need to cancel today; can we move tomorrow's 3pm appointment?",
+      "We do not need to cancel today's appointment; can we move tomorrow's 3pm appointment?",
+    ];
+
+    for (const body of bodies) {
+      const item = inboxItem({
+        received_at: "2026-04-28T08:00:00-07:00",
+        subject: "Move tomorrow",
+        body,
+      });
+
+      assert.deepEqual(classifyItem(item, extractIntake(item)), {
+        classification: "scheduling",
+        urgency: "P2",
+      });
+    }
+  });
+
+  it("keeps invalid explicit appointment dates from falling through to clock-time urgency", () => {
+    const item = inboxItem({
+      received_at: "2026-04-28T08:00:00-07:00",
+      subject: "Need to reschedule",
+      body: "Can we reschedule the 13/40 3pm appointment?",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "scheduling",
+      urgency: "P2",
+    });
+  });
+
+  it("keeps week-based future reschedules routine even with clock times", () => {
+    const bodies = [
+      "Can we reschedule next week's OT appointment to 3pm?",
+      "Can we reschedule the OT appointment in two weeks at 3pm?",
+      "I am writing today to cancel next week's 3pm appointment.",
+    ];
+
+    for (const body of bodies) {
+      const item = inboxItem({
+        subject: "Future reschedule",
+        body,
+      });
+
+      assert.deepEqual(classifyItem(item, extractIntake(item)), {
+        classification: "scheduling",
+        urgency: "P2",
+      });
+    }
+  });
+
+  it("treats clock-time scheduling with an unlabeled pediatric DOB as same-day", () => {
+    const item = inboxItem({
+      subject: "Cannot make appointment",
+      body: "I can't make 3pm for Noah Patel 11/02/2017. Please reschedule.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "scheduling",
+      urgency: "P1",
+    });
+  });
+
+  it("marks immediate operational scheduling messages as P1", () => {
+    const bodies = [
+      "We are running late for OT.",
+      "I am in the parking lot for the appointment.",
+      "Can we reschedule this evening's visit?",
+      "We can't come right now.",
+    ];
+
+    for (const body of bodies) {
+      const item = inboxItem({
+        subject: "Today appointment",
+        body,
+      });
+
+      assert.deepEqual(classifyItem(item, extractIntake(item)), {
+        classification: "scheduling",
+        urgency: "P1",
+      });
+    }
   });
 
   it("does not escalate future-dated appointment changes just because they include a time", () => {
@@ -190,6 +364,30 @@ describe("classifyItem", () => {
 
     assert.deepEqual(classifyItem(item, extractIntake(item)), {
       classification: "scheduling",
+      urgency: "P2",
+    });
+  });
+
+  it("routes billing ahead of clinical wording for invoice and payment questions", () => {
+    const item = inboxItem({
+      subject: "Invoice",
+      body: "Should I pay this invoice before booking the next visit?",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "billing_question",
+      urgency: "P2",
+    });
+  });
+
+  it("routes dissatisfaction about callbacks as a complaint before scheduling", () => {
+    const item = inboxItem({
+      subject: "No one called",
+      body: "I'm frustrated that no one called me back about rescheduling.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "complaint",
       urgency: "P2",
     });
   });

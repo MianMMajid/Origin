@@ -1,6 +1,6 @@
 import { create_task, escalate, lookup_policy } from "../../tools.js";
 import type { ActionInput, ActionResult } from "../model.js";
-import { displayChild } from "../extractor.js";
+import { displayChild, preferredLanguage } from "../extractor.js";
 import { draftReplyFor } from "./common.js";
 
 export async function handleScheduling(
@@ -31,13 +31,15 @@ export async function handleScheduling(
       ? "Family reported illness or inability to attend today's appointment. Contact the family, handle today's visit per policy, and review makeup availability."
       : "Family requested a non-same-day scheduling change. Review availability and follow up through normal front desk workflow.",
   });
-  const draftReply = await draftReplyFor(
-    item,
-    extracted,
-    sameDay
+  const spanish = preferredLanguage(item) === "es";
+  const draftBody = spanish
+    ? sameDay
+      ? "Hola, gracias por avisarnos. Un miembro del equipo revisara la cita de hoy y le dara seguimiento sobre opciones para reprogramar."
+      : "Hola, gracias por comunicarse. Un miembro del equipo revisara el horario y le dara seguimiento con opciones disponibles."
+    : sameDay
       ? "Hi, thank you for letting us know. A team member will review today's appointment and follow up about rescheduling options."
-      : "Hi, thank you for reaching out. A team member will review the schedule and follow up about available options.",
-  );
+      : "Hi, thank you for reaching out. A team member will review the schedule and follow up about available options.";
+  const draftReply = await draftReplyFor(item, extracted, draftBody);
 
   return {
     draftReply,

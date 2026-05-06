@@ -53,14 +53,14 @@ Slot holds are only pending review. The agent does not schedule appointments or 
 
 Production eval should include schema/audit validation, golden synthetic inboxes, hidden variants, safety-focused red-team cases, tool-call relevance review, and human reviewer agreement on classification, urgency, missing fields, and next action. The local validator checks ordering, task due-date sanity, stale slot holds, trace matching, and cross-field invariants; it still cannot prove that every tool call was clinically or operationally appropriate.
 
-Current automated coverage includes representative edge cases for safeguarding precedence, broader self-harm/unsafe-home/unsafe-caregiver/sexual-boundary/abuse/neglect and imminent-harm wording, negated safety language, non-safety pain or sports-injury wording, same-day versus future-dated scheduling in English and Spanish, alternate intake labels, accented Spanish cues, self-pay routing, direct therapy-need intake, intake-forms resend requests, multi-discipline referrals, no suitable slot matches, and malformed validation output. `npm run typecheck` includes both `src/` and `tests/`.
+Current automated coverage includes representative edge cases for safeguarding precedence, broader self-harm/unsafe-home/unsafe-caregiver/sexual-boundary/abuse/neglect and imminent-harm wording, negated safety language, non-safety pain or sports-injury wording, same-day versus future-dated scheduling in English and Spanish, negated same-day scheduling phrasing, invalid appointment dates, spam with identity anchors, alternate intake labels, accented Spanish cues, self-pay routing, direct therapy-need intake, intake-forms resend requests, multi-discipline referrals, no suitable slot matches, and malformed validation output. `npm run typecheck` includes both `src/` and `tests/`.
 
 ## What I chose not to build, and why
 
 - Runtime LLM orchestration: useful for robustness, but deterministic rules are faster to review and safer for a short prototype without relying on a provider key.
 - Full parser or NLP pipeline: the visible and likely hidden data can be handled with scoped extraction patterns.
 - Appointment scheduling: explicitly out of scope; the agent only finds slots and creates pending-review holds.
-- Rich deduplication across referrals and portal identities: I only use `search_patient` when a dated DOB and child name are present.
+- Rich deduplication across referrals and portal identities: I only use `search_patient` after classification routes the item to an identity-sensitive workflow and a child name plus dated DOB or full name is available.
 - Staff-facing UI: this deliverable is the JSON action plan and audit trace.
 
 ## What I would do with another 4 hours

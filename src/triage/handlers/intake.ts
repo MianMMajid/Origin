@@ -12,7 +12,7 @@ import {
   preferredLanguage,
   schedulingPreference,
 } from "../extractor.js";
-import { selectSlotForPreference } from "../slots.js";
+import { filterSlotsByChildAge, selectSlotForPreference } from "../slots.js";
 import { draftReplyFor } from "./common.js";
 
 export async function handleMissingPaperwork(
@@ -35,7 +35,7 @@ export async function handleMissingPaperwork(
     recommendedNextAction:
       "Intake should request the missing demographic, guardian, and insurance details before scheduling review.",
     decisionRationale:
-      "The referral identifies a likely SLP need but has blank required intake and insurance fields.",
+      "The referral identifies a likely therapy need but has blank required intake and insurance fields.",
   };
 }
 
@@ -169,9 +169,14 @@ async function handleReadyReferral(
     const currentSlots = slots.data.filter((slot) =>
       startsOnOrAfter(slot.start, input.dueToday),
     );
+    const ageCompatibleSlots = filterSlotsByChildAge(
+      currentSlots,
+      extracted.dob_or_age,
+      input.dueToday,
+    );
     // A slot hold is reviewable but still operationally meaningful, so only
-    // hold when it satisfies current-date and family-preference constraints.
-    const firstSlot = selectSlotForPreference(currentSlots, preferences);
+    // hold when it satisfies current-date, child-age, and family-preference constraints.
+    const firstSlot = selectSlotForPreference(ageCompatibleSlots, preferences);
     if (firstSlot) {
       const hold = await hold_slot({
         slot_id: firstSlot.slot_id,
@@ -184,6 +189,9 @@ async function handleReadyReferral(
     } else if (currentSlots.length === 0) {
       slotReviewNote =
         " Slot tool returned only slots before the operational date; review current provider availability before contacting the family.";
+    } else if (ageCompatibleSlots.length === 0) {
+      slotReviewNote =
+        " Slot tool returned provider availability, but no returned slot matched the child's age and provider age ranges; review alternate options before contacting the family.";
     } else {
       slotReviewNote =
         " Slot tool returned discipline/language availability, but no returned slot matched the stated family preference; review alternate options before contacting the family.";

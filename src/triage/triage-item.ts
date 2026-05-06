@@ -20,13 +20,13 @@ export async function triageItem(
 ): Promise<ItemOutput> {
   return withItemContext(item.id, async () => {
     const extracted = extractIntake(item);
-    const patientMatches = await findPatientMatches(extracted);
     // Classification happens before action handling so policy/tool decisions
     // are derived from one auditable triage result.
-    const decision = refineDecisionForKnownPatient(
-      classifyItem(item, extracted),
-      patientMatches,
-    );
+    const initialDecision = classifyItem(item, extracted);
+    const patientMatches = shouldSearchPatient(initialDecision)
+      ? await findPatientMatches(extracted)
+      : [];
+    const decision = refineDecisionForKnownPatient(initialDecision, patientMatches);
     const missingInfo = missingFieldsFor(decision.classification, extracted);
     const action = await handleAction({
       item,
@@ -56,17 +56,38 @@ export async function triageItem(
   });
 }
 
+function shouldSearchPatient(decision: TriageDecision): boolean {
+  switch (decision.classification) {
+    case "new_referral":
+    case "existing_patient_request":
+    case "scheduling":
+    case "billing_question":
+    case "provider_followup":
+    case "complaint":
+      return true;
+    default:
+      return false;
+  }
+}
+
 async function findPatientMatches(
   extracted: ReturnType<typeof extractIntake>,
 ): Promise<Patient[]> {
-  // The mock search tool is only reliable when both identity anchors exist.
-  if (!isDatedDob(extracted.dob_or_age) || !extracted.child_name) {
+  if (!extracted.child_name) {
+    return [];
+  }
+
+  const datedDob = isDatedDob(extracted.dob_or_age)
+    ? extracted.dob_or_age
+    : undefined;
+  const hasFullName = /\S+\s+\S+/.test(extracted.child_name.trim());
+  if (!datedDob && !hasFullName) {
     return [];
   }
 
   const searchResult = await search_patient({
     name: extracted.child_name,
-    dob: extracted.dob_or_age,
+    dob: datedDob,
   });
 
   return searchResult.data;

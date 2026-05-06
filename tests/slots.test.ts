@@ -54,4 +54,30 @@ describe("selectSlotForPreference", () => {
       spanishWednesday,
     );
   });
+
+  it("does not select slots when the child is outside the provider age range", () => {
+    const otSlot: Slot = {
+      ...baseSlot,
+      provider_id: "prov_james_owens",
+      provider_name: "James Owens, OTR/L",
+      discipline: "OT",
+      slot_id: "too_young_for_provider",
+      start: "2026-05-05T10:00:00-07:00",
+    };
+
+    assert.equal(selectSlotForPreference([otSlot], undefined, "2 years"), undefined);
+  });
+
+  it("keeps slots when the child is within the provider age range", () => {
+    const otSlot: Slot = {
+      ...baseSlot,
+      provider_id: "prov_james_owens",
+      provider_name: "James Owens, OTR/L",
+      discipline: "OT",
+      slot_id: "age_compatible",
+      start: "2026-05-05T10:00:00-07:00",
+    };
+
+    assert.equal(selectSlotForPreference([otSlot], undefined, "3 years"), otSlot);
+  });
 });

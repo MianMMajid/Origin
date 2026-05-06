@@ -137,6 +137,88 @@ describe("runAgent edge workflows", () => {
     assert.match(output.recommended_next_action, /routine scheduling request/i);
   });
 
+  it("escalates P0 safeguarding before any patient search", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "known_patient_safety",
+        subject: "Concern about Noah Patel",
+        body:
+          "Child: Noah Patel. DOB: 2017-11-02. Parent: Anita Patel, 555-3333. Dad hit him today and I am worried about safety.",
+      }),
+    ]);
+
+    assert.equal(output.classification, "safeguarding");
+    assert.equal(output.urgency, "P0");
+    const escalationIndex = toolIndex(output, "escalate");
+    assert.notEqual(escalationIndex, -1);
+    assert.equal(toolIndex(output, "search_patient"), -1);
+    assert.deepEqual(
+      output.tools_called
+        .slice(0, escalationIndex)
+        .filter(
+          (call) =>
+            call.name === "lookup_policy" &&
+            call.args.topic !== "safeguarding",
+        ),
+      [],
+    );
+  });
+
+  it("does not search patients for spam even when identity anchors are present", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "spam_with_identity",
+        subject: "Unsubscribe",
+        body:
+          "Please unsubscribe from this marketing list. Child: Noah Patel. DOB: 2017-11-02.",
+      }),
+    ]);
+
+    assert.equal(output.classification, "spam");
+    assert.equal(output.urgency, "P3");
+    assert.equal(toolIndex(output, "search_patient"), -1);
+  });
+
+  it("uses name-only active patient matches to refine non-P0 referrals", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "name_only_known_patient",
+        subject: "Referral: Noah Patel - OT",
+        body:
+          "Child: Noah Patel. He is 8-year-old. Parent: Anita Patel, 555-3333, anita@example.com. Discipline requested: OT. Concern: sensory processing. Insurance: Aetna PPO. Member ID: AET-777.",
+      }),
+    ]);
+
+    const searchCall = getToolCall(output, "search_patient");
+    assert.equal(searchCall.args.name, "Noah Patel");
+    assert.equal("dob" in searchCall.args, false);
+    assert.equal(output.classification, "existing_patient_request");
+    assert.match(output.decision_rationale, /Patient search found an active matching patient/i);
+  });
+
+  it("drafts Spanish scheduling replies in Spanish", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "spanish_same_day_schedule",
+        subject: "Cancelar cita de hoy",
+        body:
+          "Hola, soy Anita Patel. No podemos venir hoy a la cita de OT por mi hijo Noah Patel. DOB: 2017-11-02. Mi telefono es 555-3333. Gracias.",
+      }),
+    ]);
+
+    assert.equal(output.classification, "scheduling");
+    assert.equal(output.urgency, "P1");
+    assert.match(output.draft_reply || "", /^Hola, gracias/);
+    assert.doesNotMatch(output.draft_reply || "", /^Hi, thank you/);
+    const draftCall = getToolCall(output, "draft_message");
+    assert.equal(draftCall.args.language, "es");
+    assert.match(String(draftCall.args.body), /reprogramar/);
+  });
+
   it("routes intake forms requests to a specific admin action", async () => {
     configureTrace({ path: tempPath("trace.jsonl") });
     const [output] = await runAgent([
@@ -155,6 +237,22 @@ describe("runAgent edge workflows", () => {
     assert.match(output.draft_reply || "", /resend the intake forms/i);
   });
 });
+
+function toolIndex(
+  output: Awaited<ReturnType<typeof runAgent>>[number],
+  name: string,
+): number {
+  return output.tools_called.findIndex((call) => call.name === name);
+}
+
+function getToolCall(
+  output: Awaited<ReturnType<typeof runAgent>>[number],
+  name: string,
+) {
+  const toolCall = output.tools_called.find((call) => call.name === name);
+  assert.ok(toolCall, `expected ${name} call`);
+  return toolCall;
+}
 
 function createTaskNotes(output: Awaited<ReturnType<typeof runAgent>>[number]): string {
   const createTaskCall = output.tools_called.find((call) => call.name === "create_task");
