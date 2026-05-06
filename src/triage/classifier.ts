@@ -161,6 +161,8 @@ function hasSafeguardingSignal(text: string): boolean {
   // statements like "no prior abuse, but dad hit him" still escalate.
   if (
     hasSelfHarmSignal(normalized) ||
+    hasThreatToOthersSignal(normalized) ||
+    hasImminentDangerSignal(normalized) ||
     hasMedicalEmergencySignal(normalized) ||
     hasSexualBoundarySignal(normalized) ||
     hasUnsafeHomeSignal(normalized) ||
@@ -183,14 +185,39 @@ function hasSafeguardingSignal(text: string): boolean {
 }
 
 function hasSelfHarmSignal(normalizedText: string): boolean {
-  return /\b(suicidal|suicide|self[- ]?harm|wants? to die|wants? to hurt (?:himself|herself|themself|themselves|self)|(?:hurt|harm|kill)(?:ing)? (?:himself|herself|themself|themselves|self))\b/.test(
+  return (
+    /\b(suicidal|suicide|self[- ]?harm|self[- ]?injur(?:y|ies|ing)|wants? to die|wants? to hurt (?:himself|herself|themself|themselves|self)|(?:hurt|harm|kill)(?:ing)? (?:himself|herself|themself|themselves|self))\b/.test(
+      normalizedText,
+    ) ||
+    /\b(cutting|cut|cuts|burning|burns?) (?:himself|herself|themself|themselves|self)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(?:himself|herself|themself|themselves|self)\b.*\b(cutting|cut|cuts|burning|burns?)\b/.test(
+      normalizedText,
+    )
+  );
+}
+
+function hasThreatToOthersSignal(normalizedText: string): boolean {
+  return /\b(?:going to|wants? to|threat(?:ened|ens)? to|said (?:he|she|they) (?:is|are|was|were)?\s*(?:going to|will))\s+(?:hurt|harm|kill|attack)\s+(?:his|her|their|a|the)?\s*(?:sister|brother|sibling|classmate|teacher|parent|mom|mother|dad|father|caregiver|friend|other child|someone)\b/.test(
     normalizedText,
+  );
+}
+
+function hasImminentDangerSignal(normalizedText: string): boolean {
+  return (
+    /\b(run|running|ran|bolt|bolting|elope|eloping|elopement)\b.*\b(traffic|street|road|parking lot|highway)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(traffic|street|road|parking lot|highway)\b.*\b(run|running|ran|bolt|bolting|elope|eloping)\b/.test(
+      normalizedText,
+    )
   );
 }
 
 function hasMedicalEmergencySignal(normalizedText: string): boolean {
   const severeEmergency =
-    /\b(cannot breathe|can'?t breathe|not breathing|trouble breathing|difficulty breathing|choking|unconscious|blue lips|call 911|called 911|emergency)\b/.test(
+    /\b(cannot breathe|can'?t breathe|not breathing|trouble breathing|difficulty breathing|choking|unconscious|blue lips|call 911|called 911|emergency|overdose|swallowed (?:a )?(?:bottle of )?(?:pills|medication|medicine)|took (?:a )?(?:bottle of )?(?:pills|medication|medicine))\b/.test(
       normalizedText,
     );
   const acuteSeizure =
@@ -252,6 +279,12 @@ function hasNeglectSignal(normalizedText: string): boolean {
       normalizedText,
     ) ||
     /\b(parent|caregiver|guardian|dad|father|mom|mother)\b.*\b(not feeding|doesn'?t feed|does not feed|leaves? (?:him|her|them|the child)?\s*alone|neglect(?:s|ed|ing)?)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(mom|mother|dad|father|parent|caregiver|guardian)\b.*\b(using drugs|uses drugs|drug use|drunk|intoxicated|substance use|high)\b.*\b(leaves? (?:him|her|them|the child|the toddler)?\s*alone|alone overnight|unsupervised|no supervision)\b/.test(
+      normalizedText,
+    ) ||
+    /\b(leaves? (?:him|her|them|the child|the toddler)?\s*alone|alone overnight|unsupervised|no supervision)\b.*\b(mom|mother|dad|father|parent|caregiver|guardian)\b.*\b(using drugs|uses drugs|drug use|drunk|intoxicated|substance use|high)\b/.test(
       normalizedText,
     )
   );

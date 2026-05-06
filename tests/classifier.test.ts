@@ -45,6 +45,11 @@ describe("classifyItem", () => {
     const bodies = [
       "Leo told his teacher he wants to hurt himself. Please call Maria at 555-0102.",
       "My son said he wants to kill himself and run into traffic.",
+      "My daughter has been cutting herself and may do it again tonight.",
+      "My son swallowed a bottle of pills.",
+      "My child will run into traffic today.",
+      "He said he is going to hurt his sister tonight.",
+      "Mom is using drugs and leaves the toddler alone overnight.",
       "My daughter said her uncle touched her private parts.",
       "My child is having a seizure right now and cannot breathe.",
       "Parent says the caregiver has been verbally abusive at home.",
