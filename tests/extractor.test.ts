@@ -40,6 +40,17 @@ describe("extractIntake", () => {
     assert.equal(preferredLanguage(item), "es");
   });
 
+  it("extracts Spanish scheduling names without English labels", () => {
+    const item = inboxItem({
+      subject: "Cancelar cita de hoy",
+      body:
+        "No podemos venir hoy a las 3pm. Necesito cancelar la cita para Noah Patel. Mi telefono es 555-0108.",
+    });
+
+    assert.equal(extractIntake(item).child_name, "Noah Patel");
+    assert.equal(preferredLanguage(item), "es");
+  });
+
   it("handles short DOBs, compact phones, Medi-Cal, and broader concern wording", () => {
     const item = inboxItem({
       sender: "Referral fax",

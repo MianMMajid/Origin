@@ -121,6 +121,10 @@ describe("classifyItem", () => {
           "Should I use different wording for private parts hygiene? No abuse concerns.",
         expected: { classification: "clinical_question", urgency: "P2" },
       },
+      {
+        body: "Should I call 911 if he has another seizure someday?",
+        expected: { classification: "clinical_question", urgency: "P2" },
+      },
     ];
 
     for (const { body, expected } of cases) {
@@ -181,6 +185,31 @@ describe("classifyItem", () => {
       subject: "Cancel today and fee question",
       body:
         "I need to cancel today's 3pm appointment and want to know if I will be charged.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "scheduling",
+      urgency: "P1",
+    });
+  });
+
+  it("does not treat negated same-day cancellation as scheduling for unrelated asks", () => {
+    const item = inboxItem({
+      subject: "Billing question",
+      body:
+        "I don’t need to cancel today. I have a billing question about my invoice.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "billing_question",
+      urgency: "P2",
+    });
+  });
+
+  it("still escalates immediate scheduling signals after negated same-day cancellation", () => {
+    const item = inboxItem({
+      subject: "Running late",
+      body: "I don't need to cancel today, but we are running late.",
     });
 
     assert.deepEqual(classifyItem(item, extractIntake(item)), {
@@ -272,6 +301,7 @@ describe("classifyItem", () => {
       "I am in the parking lot for the appointment.",
       "Can we reschedule this evening's visit?",
       "We can't come right now.",
+      "No seizure right now, but should we still come to OT today?",
     ];
 
     for (const body of bodies) {

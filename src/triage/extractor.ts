@@ -96,9 +96,9 @@ export function replyTarget(
 }
 
 export function preferredLanguage(item: InboxItem): "en" | "es" {
-  return /\b(hola|llamo|hija|hijo|evaluacion|habla|espanol|telefono|gracias)\b/i.test(
+  return /\b(hola|llamo|hija|hijo|evaluacion|habla|espanol|telefono|gracias|cita|cancelar|reprogramar|reagendar|venir|asistir)\b/i.test(
     searchableText(item),
-  ) || /\b(spanish|espa[nñ]ol|tel[eé]fono|evaluaci[oó]n)\b/i.test(
+  ) || /\b(spanish|espa[nñ]ol|tel[eé]fono|evaluaci[oó]n|cancelaci[oó]n)\b/i.test(
     searchableText(item),
   )
     ? "es"
@@ -168,7 +168,19 @@ function extractChildName(item: InboxItem): string | null {
     ),
     matchText(
       text,
-      /\bpor mi hij[ao]\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/i,
+      /\b[Pp]or mi hij[ao]\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/,
+    ),
+    matchText(
+      text,
+      /\b[Mm]i hij[ao]\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/,
+    ),
+    matchText(
+      text,
+      /\b(?:[Cc]ita|[Tt]erapia|[Ee]valuaci[oó]n)\s+(?:de|para)\s+(?!hoy\b|ma[nñ]ana\b)([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/,
+    ),
+    matchText(
+      text,
+      /\b[Ee]s para\s+(?!hoy\b|ma[nñ]ana\b)([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,2})/,
     ),
     matchText(text, /\bmy\s+\d+[- ]year[- ]old\s+([A-Z][A-Za-z'-]+)\b/i),
     matchText(text, /\b([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,2})'s DOB\b/),

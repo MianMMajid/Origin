@@ -196,7 +196,26 @@ describe("runAgent edge workflows", () => {
     assert.equal(searchCall.args.name, "Noah Patel");
     assert.equal("dob" in searchCall.args, false);
     assert.equal(output.classification, "existing_patient_request");
-    assert.match(output.decision_rationale, /Patient search found an active matching patient/i);
+    assert.match(output.decision_rationale, /Patient search found .*active status/i);
+  });
+
+  it("routes existing-patient admin requests without full intake requirements", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "existing_patient_admin",
+        subject: "Home exercise plan copy",
+        body:
+          "Child: Noah Patel. Current patient needs a copy of his home exercise plan.",
+      }),
+    ]);
+
+    assert.equal(output.classification, "existing_patient_request");
+    assert.deepEqual(output.missing_info, []);
+    assert.equal(output.tools_called.some((call) => call.name === "find_slots"), false);
+    assert.equal(output.tools_called.some((call) => call.name === "verify_insurance"), false);
+    assert.doesNotMatch(createTaskNotes(output), /payer|member ID|diagnosis|discipline/i);
+    assert.match(output.recommended_next_action, /chart|existing-patient/i);
   });
 
   it("drafts Spanish scheduling replies in Spanish", async () => {
@@ -217,6 +236,24 @@ describe("runAgent edge workflows", () => {
     const draftCall = getToolCall(output, "draft_message");
     assert.equal(draftCall.args.language, "es");
     assert.match(String(draftCall.args.body), /reprogramar/);
+  });
+
+  it("uses emergency handling language for current medical emergency P0 items", async () => {
+    configureTrace({ path: tempPath("trace.jsonl") });
+    const [output] = await runAgent([
+      inboxItem({
+        id: "medical_emergency",
+        subject: "Emergency message",
+        body:
+          "Child: Ava Chen. My child is having a seizure right now and cannot breathe.",
+      }),
+    ]);
+
+    assert.equal(output.classification, "safeguarding");
+    assert.equal(output.urgency, "P0");
+    assert.match(output.draft_reply || "", /911|emergency services/i);
+    assert.match(output.recommended_next_action, /emergency services/i);
+    assert.match(createTaskNotes(output), /911|EMS|emergency protocol/i);
   });
 
   it("routes intake forms requests to a specific admin action", async () => {

@@ -42,11 +42,15 @@ export async function handleMissingPaperwork(
 export async function handleReferralOrExistingRequest(
   input: ActionInput,
 ): Promise<ActionResult> {
-  const { item, extracted, missingInfo } = input;
+  const { item, extracted, decision, missingInfo } = input;
 
   await lookup_policy({ topic: "service_lines" });
   if (preferredLanguage(item) === "es") {
     await lookup_policy({ topic: "language_access" });
+  }
+
+  if (decision.classification === "existing_patient_request") {
+    return handleExistingPatientRequest(input);
   }
 
   if (missingInfo.length > 0) {
@@ -115,6 +119,34 @@ export async function handleReferralOrExistingRequest(
   }
 
   return handleReadyReferral(input, insurance?.data.status === "in_network");
+}
+
+async function handleExistingPatientRequest(
+  input: ActionInput,
+): Promise<ActionResult> {
+  const { item, extracted, dueSoon, knownPatientNote, missingInfo } = input;
+  const task = await create_task({
+    assignee: "clinical_lead",
+    due: dueSoon,
+    title: `Route existing patient request for ${displayChild(extracted)}`,
+    notes:
+      `Existing-patient request needs chart review and routing without collecting a full new-intake packet. Missing context: ${missingInfo.join(", ") || "none"}.${knownPatientNote}`,
+  });
+  const draftReply = await draftReplyFor(
+    item,
+    extracted,
+    "Hi, thank you for reaching out. A team member will review the chart and route your request to the appropriate staff member.",
+  );
+
+  return {
+    draftReply,
+    taskIds: [task.data.task_id],
+    escalation: null,
+    recommendedNextAction:
+      "Clinical/admin staff should match the active chart, review the existing-patient request, and route any requested document or care-plan follow-up without starting a new-intake workflow.",
+    decisionRationale:
+      `The message is for a current or known active patient, so it should be handled as a chart-linked request rather than an incomplete new referral.${knownPatientNote ? " Patient search found an active matching patient." : ""}${knownPatientNote}`,
+  };
 }
 
 async function handleIncompleteReferral(

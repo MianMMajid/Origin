@@ -133,6 +133,7 @@ function requiredFieldsFor(
     case "scheduling":
       return ["child_name", "dob_or_age", "parent_contact"];
     case "billing_question":
+    case "existing_patient_request":
     case "provider_followup":
     case "complaint":
     case "other":
@@ -247,7 +248,17 @@ function hasCurrent911Signal(normalizedText: string): boolean {
     return false;
   }
 
+  if (hasHypothetical911AdviceQuestion(normalizedText)) {
+    return false;
+  }
+
   return !hasHistoricalEmergencyContext(normalizedText);
+}
+
+function hasHypothetical911AdviceQuestion(normalizedText: string): boolean {
+  return /\b(?:should|when should|would|do (?:i|we) need to)\b[^.?!;]{0,50}\b(?:call|dial)\s+911\b[^.?!;]{0,80}\b(?:if|when|another|again|someday|next time|in case)\b/.test(
+    normalizedText,
+  );
 }
 
 function hasCurrentEmergencySignal(normalizedText: string): boolean {
@@ -412,7 +423,7 @@ function hasComplaintSignal(text: string): boolean {
 }
 
 function hasSchedulingSignal(text: string): boolean {
-  return /\b(cancel|cancellation|reschedule|can't make|cannot make|can'?t come|move (?:the )?(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit|parking lot|in the lobby|checking in|checked in|arrived|here for (?:the )?(?:appointment|visit)|cancelar|cancela|cancelaci[oó]n|reprogramar|reagendar|cambiar (?:la )?cita|no podemos venir|no puedo venir|no podemos asistir|no puedo asistir|llegaremos tarde|llego tarde|vomit[oó]|enferm[oa])\b/i.test(
+  return /\b(cancel|cancellation|reschedule|can't make|cannot make|can'?t come|should we still come|should we come|still come to|come to (?:OT|PT|SLP|speech|therapy)|move (?:the )?(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit|parking lot|in the lobby|checking in|checked in|arrived|here for (?:the )?(?:appointment|visit)|cancelar|cancela|cancelaci[oó]n|reprogramar|reagendar|cambiar (?:la )?cita|no podemos venir|no puedo venir|no podemos asistir|no puedo asistir|llegaremos tarde|llego tarde|vomit[oó]|enferm[oa])\b/i.test(
     text,
   );
 }
@@ -427,8 +438,9 @@ function hasSameDayAppointmentSignal(
   text: string,
   receivedAt: string,
 ): boolean {
-  if (hasNegatedSameDaySchedulingSignal(text) && hasFutureDateSignal(text)) {
-    return false;
+  const textWithoutNegatedSameDay = stripNegatedSameDaySchedulingSignals(text);
+  if (textWithoutNegatedSameDay !== text) {
+    return hasSameDayAppointmentSignal(textWithoutNegatedSameDay, receivedAt);
   }
 
   if (hasFutureDateSignal(text) && !hasExplicitSameDayAppointmentCue(text)) {
@@ -452,9 +464,10 @@ function hasSameDayAppointmentSignal(
   return hasClockTimeSignal(text);
 }
 
-function hasNegatedSameDaySchedulingSignal(text: string): boolean {
-  return /\b(?:do not|don't|dont|does not|doesn't|no)\s+(?:need to\s+)?(?:cancel|reschedule|move|change)\b[^.?!;]{0,60}\b(?:today(?:['’]s)?|hoy)\b/i.test(
-    text,
+function stripNegatedSameDaySchedulingSignals(text: string): string {
+  return text.replace(
+    /\b(?:do not|don['’]?t|dont|does not|doesn['’]?t|no)\s+(?:need to\s+)?(?:cancel|reschedule|move|change)\b[^.?!;]{0,60}\b(?:today(?:['’]s)?|hoy)\b[^.?!;]*/gi,
+    " ",
   );
 }
 
