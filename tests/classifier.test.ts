@@ -50,6 +50,7 @@ describe("classifyItem", () => {
       "My child will run into traffic today.",
       "He said he is going to hurt his sister tonight.",
       "Mom is using drugs and leaves the toddler alone overnight.",
+      "The caregiver is unsafe and leaves her without meals.",
       "My daughter said her uncle touched her private parts.",
       "My child is having a seizure right now and cannot breathe.",
       "Parent says the caregiver has been verbally abusive at home.",
@@ -157,6 +158,39 @@ describe("classifyItem", () => {
     assert.deepEqual(classifyItem(item, extractIntake(item)), {
       classification: "scheduling",
       urgency: "P1",
+    });
+  });
+
+  it("marks Spanish same-day cancellation and reschedule requests as P1", () => {
+    const bodies = [
+      "No podemos venir hoy a las 3pm. Necesito cancelar.",
+      "Necesito reprogramar la cita de hoy a las 3pm.",
+    ];
+
+    for (const body of bodies) {
+      const item = inboxItem({
+        received_at: "2026-04-28T08:00:00-07:00",
+        subject: "Cambio de cita",
+        body,
+      });
+
+      assert.deepEqual(classifyItem(item, extractIntake(item)), {
+        classification: "scheduling",
+        urgency: "P1",
+      });
+    }
+  });
+
+  it("keeps Spanish future scheduling requests routine", () => {
+    const item = inboxItem({
+      received_at: "2026-04-28T08:00:00-07:00",
+      subject: "Cambio de cita",
+      body: "No podemos venir manana a las 3pm. Necesito reprogramar.",
+    });
+
+    assert.deepEqual(classifyItem(item, extractIntake(item)), {
+      classification: "scheduling",
+      urgency: "P2",
     });
   });
 

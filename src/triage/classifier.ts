@@ -234,7 +234,7 @@ function hasSexualBoundarySignal(normalizedText: string): boolean {
 }
 
 function hasUnsafeHomeSignal(normalizedText: string): boolean {
-  return /\b(not safe at home|unsafe at home|scared to go home|afraid to go home|doesn'?t feel safe|does not feel safe|home is unsafe|unsafe caregiving)\b/.test(
+  return /\b(not safe at home|unsafe at home|scared to go home|afraid to go home|doesn'?t feel safe|does not feel safe|home is unsafe|unsafe caregiving|unsafe caregiver|caregiver is unsafe|unsafe care)\b/.test(
     normalizedText,
   );
 }
@@ -278,6 +278,9 @@ function hasNeglectSignal(normalizedText: string): boolean {
     /\b(ongoing neglect|being neglected|not being fed|not fed|no food|left (?:him|her|them|the child)?\s*alone|unsupervised|caregiver unavailable|no supervision)\b/.test(
       normalizedText,
     ) ||
+    /\b(leaves? (?:him|her|them|the child|the toddler)\s+without meals?|without meals?|not getting meals?|missed meals?)\b/.test(
+      normalizedText,
+    ) ||
     /\b(parent|caregiver|guardian|dad|father|mom|mother)\b.*\b(not feeding|doesn'?t feed|does not feed|leaves? (?:him|her|them|the child)?\s*alone|neglect(?:s|ed|ing)?)\b/.test(
       normalizedText,
     ) ||
@@ -305,13 +308,13 @@ function isNegatedSafetyOnly(normalizedText: string): boolean {
 }
 
 function hasSchedulingSignal(text: string): boolean {
-  return /\b(cancel|cancellation|reschedule|can't make|cannot make|can'?t come|move (?:the )?(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit)\b/i.test(
+  return /\b(cancel|cancellation|reschedule|can't make|cannot make|can'?t come|move (?:the )?(?:appointment|visit)|running late|late arrival|makeup|make-up|no[- ]?show|sick|ill|threw up|vomit|cancelar|cancela|cancelaci[oó]n|reprogramar|reagendar|cambiar (?:la )?cita|no podemos venir|no puedo venir|no podemos asistir|no puedo asistir|llegaremos tarde|llego tarde|vomit[oó]|enferm[oa])\b/i.test(
     text,
   );
 }
 
 function hasSameDaySignal(text: string): boolean {
-  return /\b(today'?s?|same[- ]day|this afternoon|this morning|in \d+ minutes?|in an hour|within the hour)\b/i.test(
+  return /\b(today'?s?|same[- ]day|this afternoon|this morning|in \d+ minutes?|in an hour|within the hour|hoy|esta tarde|esta ma[nñ]ana|en \d+ minutos?|en una hora)\b/i.test(
     text,
   );
 }
@@ -342,7 +345,7 @@ function hasClockTimeSignal(text: string): boolean {
 }
 
 function hasFutureDateSignal(text: string): boolean {
-  return /\b(tomorrow|next week|next month|next monday|next tuesday|next wednesday|next thursday|next friday|next saturday|next sunday)\b/i.test(
+  return /\b(tomorrow|next week|next month|next monday|next tuesday|next wednesday|next thursday|next friday|next saturday|next sunday|ma[nñ]ana|la pr[oó]xima semana|el pr[oó]ximo mes|pr[oó]ximo lunes|pr[oó]ximo martes|pr[oó]ximo mi[eé]rcoles|pr[oó]ximo jueves|pr[oó]ximo viernes|pr[oó]ximo s[aá]bado|pr[oó]ximo domingo)\b/i.test(
     text,
   );
 }

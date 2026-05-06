@@ -10,7 +10,7 @@ npm test
 npm run check
 ```
 
-The triage/validate flags are optional; the commands default to the paths shown above. `npm run check` runs typecheck, unit/integration tests, triage, validation, and packaging.
+The triage/validate flags are optional; the commands default to the paths shown above. `npm run check` runs typecheck, unit/integration tests, triage, validation, and packaging. The generated `take-home.tgz` includes both `output.json` and `.trace/tool-calls.jsonl` so the packaged output can be audited.
 
 ## Stack and runtime
 
@@ -51,9 +51,9 @@ Slot holds are only pending review. The agent does not schedule appointments or 
 - Insurance verification trusts the provided mock tool result. Production should compare payer documents, eligibility data, referral metadata, and billing-system state with explicit discrepancy handling.
 - Draft replies avoid clinical advice, but production needs clinician-approved templates, localization review, and monitoring for accidental advice or false reassurance.
 
-Production eval should include schema/audit validation, golden synthetic inboxes, hidden variants, safety-focused red-team cases, tool-call relevance review, and human reviewer agreement on classification, urgency, missing fields, and next action.
+Production eval should include schema/audit validation, golden synthetic inboxes, hidden variants, safety-focused red-team cases, tool-call relevance review, and human reviewer agreement on classification, urgency, missing fields, and next action. The local validator checks ordering, task due-date sanity, stale slot holds, trace matching, and cross-field invariants; it still cannot prove that every tool call was clinically or operationally appropriate.
 
-Current automated coverage includes representative edge cases for safeguarding precedence, broader self-harm/unsafe-home/sexual-boundary/abuse/neglect and imminent-harm wording, negated safety language, non-safety pain or sports-injury wording, same-day versus future-dated scheduling, alternate intake labels, accented Spanish cues, self-pay routing, direct therapy-need intake, intake-forms resend requests, multi-discipline referrals, no suitable slot matches, and malformed validation output. `npm run typecheck` includes both `src/` and `tests/`.
+Current automated coverage includes representative edge cases for safeguarding precedence, broader self-harm/unsafe-home/unsafe-caregiver/sexual-boundary/abuse/neglect and imminent-harm wording, negated safety language, non-safety pain or sports-injury wording, same-day versus future-dated scheduling in English and Spanish, alternate intake labels, accented Spanish cues, self-pay routing, direct therapy-need intake, intake-forms resend requests, multi-discipline referrals, no suitable slot matches, and malformed validation output. `npm run typecheck` includes both `src/` and `tests/`.
 
 ## What I chose not to build, and why
 

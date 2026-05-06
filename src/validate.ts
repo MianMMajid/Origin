@@ -65,6 +65,8 @@ function main(): void {
   validateToolThreshold(output, errors);
   validateForbiddenTools(output, trace, errors);
   validateTraceMatch(output, trace, errors);
+  validateOutputOrdering(input, output, errors);
+  validateOperationalSemantics(input, output, errors);
   validateCrossFieldInvariants(output, errors);
 
   if (errors.length > 0) {
@@ -215,6 +217,138 @@ function validateHumanReview(output: BatchOutput, errors: string[]): void {
       );
     }
   }
+}
+
+function validateOutputOrdering(
+  input: InboxItem[],
+  output: BatchOutput,
+  errors: string[],
+): void {
+  const inputOrder = new Map(
+    input.map((item, index) => [
+      item.id,
+      { index, receivedAt: Date.parse(item.received_at) },
+    ]),
+  );
+
+  for (let index = 1; index < output.items.length; index += 1) {
+    const previous = output.items[index - 1];
+    const current = output.items[index];
+    if (compareReviewOrder(previous, current, inputOrder) > 0) {
+      errors.push(
+        `ordering: ${current.item_id} should appear before ${previous.item_id} in priority review order`,
+      );
+      return;
+    }
+  }
+}
+
+function validateOperationalSemantics(
+  input: InboxItem[],
+  output: BatchOutput,
+  errors: string[],
+): void {
+  const operationalDate = inferOperationalDate(input);
+  const generatedAt = Date.parse(output.generated_at);
+
+  for (const item of output.items) {
+    for (const call of item.tools_called) {
+      if (call.name === "create_task") {
+        validateTaskDueDate(item.item_id, item.urgency, call, operationalDate, errors);
+      }
+
+      if (call.name === "hold_slot") {
+        validateSlotHoldFreshness(item.item_id, call, generatedAt, errors);
+      }
+    }
+  }
+}
+
+function validateTaskDueDate(
+  itemId: string,
+  urgency: BatchOutput["items"][number]["urgency"],
+  call: ToolCall,
+  operationalDate: string,
+  errors: string[],
+): void {
+  const due = call.args.due;
+  if (typeof due !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(due)) {
+    errors.push(`due date: ${itemId} create_task ${call.call_id} has invalid due date`);
+    return;
+  }
+
+  if (due < operationalDate) {
+    errors.push(
+      `due date: ${itemId} create_task ${call.call_id} is due before operational date ${operationalDate}`,
+    );
+  }
+
+  if ((urgency === "P0" || urgency === "P1") && due !== operationalDate) {
+    errors.push(
+      `due date: ${itemId} ${urgency} task ${call.call_id} should be due on operational date ${operationalDate}`,
+    );
+  }
+}
+
+function validateSlotHoldFreshness(
+  itemId: string,
+  call: ToolCall,
+  generatedAt: number,
+  errors: string[],
+): void {
+  const match = call.result_summary.match(/\buntil\s+(\S+)/i);
+  if (!match) {
+    errors.push(`slot hold: ${itemId} hold_slot ${call.call_id} is missing expiration in result summary`);
+    return;
+  }
+
+  const expiresAt = Date.parse(match[1]);
+  if (!Number.isFinite(expiresAt)) {
+    errors.push(`slot hold: ${itemId} hold_slot ${call.call_id} has invalid expiration`);
+    return;
+  }
+
+  if (Number.isFinite(generatedAt) && expiresAt <= generatedAt) {
+    errors.push(`slot hold: ${itemId} hold_slot ${call.call_id} is stale at output generation time`);
+  }
+}
+
+const urgencyRank = {
+  P0: 0,
+  P1: 1,
+  P2: 2,
+  P3: 3,
+} as const;
+
+function compareReviewOrder(
+  left: BatchOutput["items"][number],
+  right: BatchOutput["items"][number],
+  inputOrder: Map<string, { index: number; receivedAt: number }>,
+): number {
+  const urgencyDelta = urgencyRank[left.urgency] - urgencyRank[right.urgency];
+  if (urgencyDelta !== 0) {
+    return urgencyDelta;
+  }
+
+  const leftMeta = inputOrder.get(left.item_id);
+  const rightMeta = inputOrder.get(right.item_id);
+  const leftReceived = leftMeta?.receivedAt ?? Number.POSITIVE_INFINITY;
+  const rightReceived = rightMeta?.receivedAt ?? Number.POSITIVE_INFINITY;
+  const receivedDelta = leftReceived - rightReceived;
+  if (receivedDelta !== 0 && Number.isFinite(receivedDelta)) {
+    return receivedDelta;
+  }
+
+  return (leftMeta?.index ?? 0) - (rightMeta?.index ?? 0);
+}
+
+function inferOperationalDate(input: InboxItem[]): string {
+  const dates = input
+    .map((item) => item.received_at.slice(0, 10))
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .sort();
+
+  return dates.at(-1) || new Date().toISOString().slice(0, 10);
 }
 
 function validateToolThreshold(output: BatchOutput, errors: string[]): void {
